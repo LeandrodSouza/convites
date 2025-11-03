@@ -1,10 +1,10 @@
-function GiftCard({ gift, onSelect, disabled, isSelected }) {
+function GiftCard({ gift, onSelect, onUnselect, disabled, isSelected }) {
   return (
     <div className={`border-2 rounded-lg p-4 transition ${
-      gift.taken
-        ? 'border-gray-300 bg-gray-100'
-        : isSelected
+      isSelected
         ? 'border-green-500 bg-green-50'
+        : gift.taken
+        ? 'border-gray-300 bg-gray-100'
         : 'border-pink-300 bg-white hover:border-primary'
     }`}>
       <h3 className="text-lg font-bold text-gray-800 mb-2">{gift.name}</h3>
@@ -20,14 +20,21 @@ function GiftCard({ gift, onSelect, disabled, isSelected }) {
         </a>
       )}
 
-      {gift.taken ? (
+      {isSelected ? (
+        <div className="space-y-2">
+          <div className="text-sm text-green-600 font-bold">
+            ✅ Você escolheu este presente!
+          </div>
+          <button
+            onClick={() => onUnselect(gift.id)}
+            className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition"
+          >
+            Desselecionar
+          </button>
+        </div>
+      ) : gift.taken ? (
         <div className="text-sm text-gray-600 font-bold">
           ✅ Já foi escolhido
-          {gift.takenBy && <p className="text-xs mt-1">por {gift.takenBy}</p>}
-        </div>
-      ) : isSelected ? (
-        <div className="text-sm text-green-600 font-bold">
-          ✅ Você escolheu este presente!
         </div>
       ) : (
         <button

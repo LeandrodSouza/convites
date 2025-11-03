@@ -5,6 +5,7 @@ import { auth, db } from '../services/firebase';
 import { collection, onSnapshot, query, doc, updateDoc } from 'firebase/firestore';
 import { getUserById } from '../services/userService';
 import GiftCard from '../components/GiftCard';
+import Toast from '../components/Toast';
 
 function HomePage({ user }) {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ function HomePage({ user }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedGift, setSelectedGift] = useState(null);
+  const [toasts, setToasts] = useState([]);
 
   useEffect(() => {
     if (!user) {
@@ -31,16 +33,46 @@ function HomePage({ user }) {
         id: doc.id,
         ...doc.data()
       }));
+
+      console.log('Presentes carregados:', giftsData);
+
+      // Detectar presentes que foram escolhidos por outros usuarios
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'modified') {
+          const oldData = gifts.find(g => g.id === change.doc.id);
+          const newData = change.doc.data();
+
+          // Se um presente mudou de disponivel para taken
+          // E nao foi o proprio usuario que escolheu
+          if (oldData && !oldData.taken && newData.taken && selectedGift !== change.doc.id) {
+            showToast(`Presente "${newData.name}" foi escolhido!`);
+          }
+        }
+      });
+
       setGifts(giftsData);
+    }, (error) => {
+      console.error('Erro ao carregar presentes:', error);
     });
 
     return () => unsubscribe();
   }, [user]);
 
+  const showToast = (message) => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message }]);
+  };
+
+  const removeToast = (id) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
+
   const loadUserStatus = async () => {
     try {
       setLoading(true);
       const status = await getUserById(user.uid);
+
+      console.log('Status do usuario:', status);
 
       if (!status || status.status !== 'approved') {
         navigate('/pending');
@@ -49,6 +81,7 @@ function HomePage({ user }) {
 
       setUserStatus(status);
       setSelectedGift(status.selectedGift || null);
+      console.log('selectedGift setado:', status.selectedGift);
     } catch (err) {
       setError('Erro ao carregar dados');
       console.error(err);
@@ -77,6 +110,34 @@ function HomePage({ user }) {
       alert('Presente selecionado com sucesso!');
     } catch (err) {
       alert('Erro ao selecionar presente');
+      console.error(err);
+    }
+  };
+
+  const handleUnselectGift = async (giftId) => {
+    if (!giftId) return;
+
+    if (!confirm('Deseja realmente desselecionar este presente?')) return;
+
+    try {
+      const giftRef = doc(db, 'gifts', giftId);
+      const userRef = doc(db, 'users', user.uid);
+
+      // Marcar presente como disponível novamente
+      await updateDoc(giftRef, {
+        taken: false,
+        takenBy: null
+      });
+
+      // Remover presente selecionado do usuário
+      await updateDoc(userRef, {
+        selectedGift: null
+      });
+
+      setSelectedGift(null);
+      alert('Presente deselecionado com sucesso!');
+    } catch (err) {
+      alert('Erro ao desselecionar presente');
       console.error(err);
     }
   };
@@ -152,27 +213,87 @@ function HomePage({ user }) {
           </p>
         </div>
 
-        {/* Gift Selection */}
+        {/* User's Selected Gift */}
+        {(() => {
+          const userName = user.displayName || user.email;
+          const myGifts = gifts.filter(gift => gift.takenBy === userName);
+
+          if (myGifts.length > 0) {
+            return (
+              <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
+                <h2 className="text-2xl font-bold text-green-600 mb-4">Seu Presente</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {myGifts.map((gift) => (
+                    <GiftCard
+                      key={gift.id}
+                      gift={gift}
+                      onSelect={handleSelectGift}
+                      onUnselect={handleUnselectGift}
+                      isSelected={true}
+                      disabled={false}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })()}
+
+        {/* Available Gifts */}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Escolha seu Presente</h2>
-          {selectedGift && (
-            <div className="bg-green-50 border border-green-200 p-4 rounded-lg mb-4">
-              <p className="text-green-800">Voce ja selecionou um presente!</p>
-            </div>
-          )}
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Presentes Disponiveis</h2>
+          {(() => {
+            const userName = user.displayName || user.email;
+            const hasSelectedGift = gifts.some(g => g.takenBy === userName);
+
+            if (hasSelectedGift) {
+              return (
+                <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg mb-4">
+                  <p className="text-blue-800">
+                    Voce ja escolheu um presente. Para escolher outro, desselecione o atual primeiro.
+                  </p>
+                </div>
+              );
+            }
+            return null;
+          })()}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {gifts.map((gift) => (
-              <GiftCard
-                key={gift.id}
-                gift={gift}
-                onSelect={handleSelectGift}
-                selected={selectedGift === gift.id}
-                disabled={gift.taken && selectedGift !== gift.id}
-              />
-            ))}
+            {(() => {
+              const userName = user.displayName || user.email;
+              const hasSelectedGift = gifts.some(g => g.takenBy === userName);
+              const availableGifts = gifts.filter(gift => !gift.taken);
+              console.log('Presentes disponiveis:', availableGifts);
+              return availableGifts.map((gift) => (
+                <GiftCard
+                  key={gift.id}
+                  gift={gift}
+                  onSelect={handleSelectGift}
+                  onUnselect={handleUnselectGift}
+                  isSelected={false}
+                  disabled={hasSelectedGift}
+                />
+              ));
+            })()}
           </div>
+          {gifts.length === 0 && (
+            <p className="text-center text-gray-500 py-8">Nenhum presente cadastrado ainda.</p>
+          )}
+          {gifts.length > 0 && gifts.filter(gift => !gift.taken).length === 0 && (
+            <p className="text-center text-gray-500 py-8">Todos os presentes ja foram escolhidos.</p>
+          )}
         </div>
       </div>
+
+      {/* Toast notifications */}
+      {toasts.map(toast => (
+        <Toast
+          key={toast.id}
+          message={toast.message}
+          type="info"
+          onClose={() => removeToast(toast.id)}
+        />
+      ))}
     </div>
   );
 }
