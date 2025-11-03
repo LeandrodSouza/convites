@@ -88,5 +88,42 @@ export const api = {
       }
     });
     return response.json();
+  },
+
+  // User endpoints
+  async createOrUpdateUser(authToken, email, displayName, photoURL) {
+    const response = await fetch(`${API_URL}/api/users`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({ email, displayName, photoURL })
+    });
+    return response.json();
+  },
+
+  async approveUser(authToken, userId, approvedBy) {
+    const response = await fetch(`${API_URL}/api/users/${userId}/approve`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({ approvedBy })
+    });
+    return response.json();
+  },
+
+  async rejectUser(authToken, userId, rejectedBy) {
+    const response = await fetch(`${API_URL}/api/users/${userId}/reject`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({ rejectedBy })
+    });
+    return response.json();
   }
 };

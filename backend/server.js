@@ -17,11 +17,13 @@ const inviteRoutes = require('./src/routes/inviteRoutes');
 const giftRoutes = require('./src/routes/giftRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
 const emailRoutes = require('./src/routes/emailRoutes');
+const userRoutes = require('./src/routes/userRoutes');
 
 app.use('/api/invites', inviteRoutes);
 app.use('/api/gifts', giftRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/email', emailRoutes);
+app.use('/api/users', userRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

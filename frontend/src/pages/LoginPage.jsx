@@ -2,13 +2,48 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { auth, googleProvider } from '../services/firebase';
+import { api } from '../services/api';
+import { getUserById } from '../services/userService';
 
 function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const returnUrl = searchParams.get('returnUrl');
+
+  // Processa autenticação do usuário
+  const processAuth = async (user) => {
+    try {
+      const adminEmails = (import.meta.env.VITE_ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
+      const isAdmin = user.email && adminEmails.includes(user.email.toLowerCase());
+
+      // Admin vai direto para painel
+      if (isAdmin) {
+        navigate('/admin');
+        return;
+      }
+
+      // Usuário comum: registra e verifica status
+      const token = await user.getIdToken();
+      await api.createOrUpdateUser(token, user.email, user.displayName, user.photoURL);
+
+      // Verifica status do usuário
+      const userStatus = await getUserById(user.uid);
+
+      if (userStatus?.status === 'approved') {
+        navigate('/home');
+      } else if (userStatus?.status === 'rejected') {
+        setError('Seu acesso foi negado pelos administradores.');
+        await auth.signOut();
+      } else {
+        // pending ou não existe ainda
+        navigate('/pending');
+      }
+    } catch (err) {
+      console.error('Erro ao processar autenticação:', err);
+      setError('Erro ao processar login. Tente novamente.');
+    }
+  };
 
   // Verifica se já está logado ou processa redirect
   useEffect(() => {
@@ -22,22 +57,7 @@ function LoginPage() {
         if (!mounted) return;
 
         if (result?.user) {
-          const adminEmails = (import.meta.env.VITE_ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
-          const isAdmin = result.user.email && adminEmails.includes(result.user.email.toLowerCase());
-
-          // Se tem returnUrl (veio de um convite), vai para lá
-          if (returnUrl) {
-            navigate(returnUrl);
-          }
-          // Se é admin e não tem returnUrl, vai para /admin
-          else if (isAdmin) {
-            navigate('/admin');
-          }
-          // Se não é admin e não tem returnUrl, mostra mensagem
-          else {
-            setError('Você precisa de um link de convite para acessar. Entre em contato com os organizadores.');
-            await auth.signOut();
-          }
+          await processAuth(result.user);
         }
       } catch (err) {
         console.error('Erro ao processar redirect:', err);
@@ -46,22 +66,11 @@ function LoginPage() {
     };
 
     // Também escuta mudanças de autenticação
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (!mounted) return;
 
       if (user) {
-        const adminEmails = (import.meta.env.VITE_ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
-        const isAdmin = user.email && adminEmails.includes(user.email.toLowerCase());
-
-        // Se tem returnUrl, vai para lá
-        if (returnUrl) {
-          navigate(returnUrl);
-        }
-        // Se é admin, vai para /admin
-        else if (isAdmin) {
-          navigate('/admin');
-        }
-        // Senão, fica na tela de login esperando
+        await processAuth(user);
       }
     });
 
@@ -71,7 +80,7 @@ function LoginPage() {
       mounted = false;
       unsubscribe();
     };
-  }, [navigate, returnUrl]);
+  }, [navigate]);
 
   const handleGoogleSignIn = async () => {
     try {
@@ -81,18 +90,7 @@ function LoginPage() {
       // Tenta popup primeiro (melhor para localhost)
       try {
         const result = await signInWithPopup(auth, googleProvider);
-
-        const adminEmails = (import.meta.env.VITE_ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
-        const isAdmin = result.user.email && adminEmails.includes(result.user.email.toLowerCase());
-
-        if (returnUrl) {
-          navigate(returnUrl);
-        } else if (isAdmin) {
-          navigate('/admin');
-        } else {
-          setError('Você precisa de um link de convite para acessar. Entre em contato com os organizadores.');
-          await auth.signOut();
-        }
+        await processAuth(result.user);
       } catch (popupErr) {
         // Se popup falhar, tenta redirect
         console.log('Popup failed, trying redirect:', popupErr);

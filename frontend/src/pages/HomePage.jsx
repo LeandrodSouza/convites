@@ -1,30 +1,28 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '../services/firebase';
-import { collection, onSnapshot, query } from 'firebase/firestore';
-import { api } from '../services/api';
+import { collection, onSnapshot, query, doc, updateDoc } from 'firebase/firestore';
+import { getUserById } from '../services/userService';
 import GiftCard from '../components/GiftCard';
-import ConfirmationButton from '../components/ConfirmationButton';
 
 function HomePage({ user }) {
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const token = searchParams.get('t');
 
-  const [invite, setInvite] = useState(null);
+  const [userStatus, setUserStatus] = useState(null);
   const [gifts, setGifts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedGift, setSelectedGift] = useState(null);
 
   useEffect(() => {
-    if (!token) {
-      navigate('/invite');
+    if (!user) {
+      navigate('/login');
       return;
     }
 
-    // Load invite data
-    loadInvite();
+    // Verificar se usuário está aprovado
+    loadUserStatus();
 
     // Subscribe to gifts in real-time
     const giftsQuery = query(collection(db, 'gifts'));
@@ -37,17 +35,20 @@ function HomePage({ user }) {
     });
 
     return () => unsubscribe();
-  }, [token]);
+  }, [user]);
 
-  const loadInvite = async () => {
+  const loadUserStatus = async () => {
     try {
       setLoading(true);
-      const data = await api.verifyInvite(token);
-      if (data.error) {
-        setError('Convite inválido');
-      } else {
-        setInvite(data);
+      const status = await getUserById(user.uid);
+
+      if (!status || status.status !== 'approved') {
+        navigate('/pending');
+        return;
       }
+
+      setUserStatus(status);
+      setSelectedGift(status.selectedGift || null);
     } catch (err) {
       setError('Erro ao carregar dados');
       console.error(err);
@@ -56,28 +57,24 @@ function HomePage({ user }) {
     }
   };
 
-  const handleConfirm = async () => {
-    try {
-      const result = await api.confirmPresence(token);
-      if (result.error) {
-        setError(result.error);
-      } else {
-        await loadInvite();
-      }
-    } catch (err) {
-      setError('Erro ao confirmar presença');
-      console.error(err);
-    }
-  };
-
   const handleSelectGift = async (giftId) => {
     try {
-      const result = await api.selectGift(giftId, token);
-      if (result.error) {
-        alert(result.error);
-      } else {
-        await loadInvite();
-      }
+      const giftRef = doc(db, 'gifts', giftId);
+      const userRef = doc(db, 'users', user.uid);
+
+      // Atualizar presente como selecionado
+      await updateDoc(giftRef, {
+        taken: true,
+        takenBy: user.displayName || user.email
+      });
+
+      // Atualizar usuário com presente selecionado
+      await updateDoc(userRef, {
+        selectedGift: giftId
+      });
+
+      setSelectedGift(giftId);
+      alert('Presente selecionado com sucesso!');
     } catch (err) {
       alert('Erro ao selecionar presente');
       console.error(err);
@@ -86,7 +83,7 @@ function HomePage({ user }) {
 
   const handleLogout = async () => {
     await signOut(auth);
-    navigate('/invite');
+    navigate('/login');
   };
 
   const handleAdminAccess = () => {
@@ -104,12 +101,12 @@ function HomePage({ user }) {
     );
   }
 
-  if (!invite) {
+  if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-100 to-purple-100">
         <div className="bg-white p-8 rounded-lg shadow-lg text-center">
           <h1 className="text-2xl font-bold text-red-600 mb-4">Erro</h1>
-          <p className="text-gray-700">{error || 'Convite não encontrado'}</p>
+          <p className="text-gray-700">{error}</p>
         </div>
       </div>
     );
@@ -125,7 +122,7 @@ function HomePage({ user }) {
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold text-primary mb-2">Olá, {user.displayName}! 🎉</h1>
+              <h1 className="text-3xl font-bold text-primary mb-2">Ola, {user.displayName}!</h1>
               <p className="text-gray-600">{user.email}</p>
             </div>
             <div className="flex gap-2">
@@ -147,51 +144,34 @@ function HomePage({ user }) {
           </div>
         </div>
 
-        {/* Confirmation Section */}
-        {!invite.confirmed && (
-          <ConfirmationButton onConfirm={handleConfirm} />
-        )}
-
         {/* Address Section */}
-        {invite.confirmed && (
-          <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">📍 Endereço do Evento</h2>
-            <p className="text-lg text-gray-700 bg-yellow-50 p-4 rounded-lg border-2 border-yellow-200">
-              {import.meta.env.VITE_EVENT_ADDRESS || 'Endereço não configurado'}
-            </p>
-          </div>
-        )}
+        <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Endereco do Evento</h2>
+          <p className="text-lg text-gray-700 bg-yellow-50 p-4 rounded-lg border-2 border-yellow-200">
+            {import.meta.env.VITE_EVENT_ADDRESS || 'Endereco nao configurado'}
+          </p>
+        </div>
 
         {/* Gift Selection */}
-        {invite.confirmed && (
-          <div className="bg-white rounded-2xl shadow-lg p-6">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6">🎁 Lista de Presentes</h2>
-
-            {invite.giftId && (
-              <div className="mb-6 p-4 bg-green-100 border-2 border-green-400 rounded-lg">
-                <p className="text-green-800 font-bold">
-                  ✅ Você já escolheu seu presente!
-                </p>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {gifts.map(gift => (
-                <GiftCard
-                  key={gift.id}
-                  gift={gift}
-                  onSelect={handleSelectGift}
-                  disabled={!!invite.giftId || gift.taken}
-                  isSelected={gift.id === invite.giftId}
-                />
-              ))}
+        <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Escolha seu Presente</h2>
+          {selectedGift && (
+            <div className="bg-green-50 border border-green-200 p-4 rounded-lg mb-4">
+              <p className="text-green-800">Voce ja selecionou um presente!</p>
             </div>
-
-            {gifts.length === 0 && (
-              <p className="text-center text-gray-500 py-8">Nenhum presente cadastrado ainda.</p>
-            )}
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {gifts.map((gift) => (
+              <GiftCard
+                key={gift.id}
+                gift={gift}
+                onSelect={handleSelectGift}
+                selected={selectedGift === gift.id}
+                disabled={gift.taken && selectedGift !== gift.id}
+              />
+            ))}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

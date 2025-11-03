@@ -7,6 +7,7 @@ import HomePage from './pages/HomePage';
 import AdminPage from './pages/AdminPage';
 import LoginPage from './pages/LoginPage';
 import NotFoundPage from './pages/NotFoundPage';
+import PendingApprovalPage from './pages/PendingApprovalPage';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -33,6 +34,7 @@ function App() {
     <Router>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/pending" element={user ? <PendingApprovalPage user={user} /> : <Navigate to="/login" />} />
         <Route path="/invite" element={<InvitePage user={user} />} />
         <Route path="/home" element={user ? <HomePage user={user} /> : <Navigate to="/login" />} />
         <Route path="/admin" element={user ? <AdminPage user={user} /> : <Navigate to="/login" />} />

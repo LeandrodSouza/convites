@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Users collection rules
+    match /users/{userId} {
+      // Allow authenticated users to read all user documents
+      // (needed for admin panel to list users)
+      allow read: if isAuthenticated();
+
+      // Deny all writes from frontend
+      // All user mutations (create, approve, reject) must go through backend API
+      allow write: if false;
+    }
+
+    // Gifts collection rules (existing functionality)
+    match /gifts/{giftId} {
+      // Allow authenticated users to read all gifts
+      allow read: if isAuthenticated();
+
+      // Allow authenticated users to update gifts (for gift selection)
+      allow update: if isAuthenticated()
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['taken', 'takenBy']);
+
+      // Admin operations (add gifts) are handled via backend API
+      allow create, delete: if false;
+    }
+
+    // Email logs collection rules
+    match /emailLogs/{logId} {
+      // Allow authenticated users to read email logs (admin panel)
+      allow read: if isAuthenticated();
+
+      // All writes handled via backend API
+      allow write: if false;
+    }
+  }
+}
