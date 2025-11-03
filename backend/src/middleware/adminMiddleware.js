@@ -1,7 +1,10 @@
 const isAdmin = (req, res, next) => {
-  const adminEmails = process.env.ADMIN_EMAILS.split(',').map(e => e.trim());
+  const adminEmailsEnv = process.env.ADMIN_EMAILS || '';
+  const adminEmails = adminEmailsEnv.split(',').map(e => e.trim().toLowerCase());
 
-  if (!req.user || !adminEmails.includes(req.user.email)) {
+  const userEmail = req.user ? req.user.email.toLowerCase() : null;
+
+  if (!userEmail || !adminEmails.includes(userEmail)) {
     return res.status(403).json({ error: 'Access denied. Admin only.' });
   }
 
