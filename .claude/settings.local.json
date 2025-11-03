@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir /B \"C:\\convites\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

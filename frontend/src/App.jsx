@@ -6,6 +6,7 @@ import InvitePage from './pages/InvitePage';
 import HomePage from './pages/HomePage';
 import AdminPage from './pages/AdminPage';
 import LoginPage from './pages/LoginPage';
+import NotFoundPage from './pages/NotFoundPage';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -36,6 +37,7 @@ function App() {
         <Route path="/home" element={user ? <HomePage user={user} /> : <Navigate to="/login" />} />
         <Route path="/admin" element={user ? <AdminPage user={user} /> : <Navigate to="/login" />} />
         <Route path="/" element={<Navigate to="/login" />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Router>
   );
