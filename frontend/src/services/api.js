@@ -160,14 +160,14 @@ export const api = {
     return response.json();
   },
 
-  async updateEventSettings(authToken, address, latitude, longitude, eventDate, eventTime) {
+  async updateEventSettings(authToken, address, latitude, longitude, eventDate, eventTime, requireApproval) {
     const response = await fetch(`${API_URL}/api/event-settings`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${authToken}`
       },
-      body: JSON.stringify({ address, latitude, longitude, eventDate, eventTime })
+      body: JSON.stringify({ address, latitude, longitude, eventDate, eventTime, requireApproval })
     });
     return response.json();
   },

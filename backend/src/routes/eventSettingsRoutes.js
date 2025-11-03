@@ -17,7 +17,8 @@ router.get('/', verifyToken, async (req, res) => {
         latitude: null,
         longitude: null,
         eventDate: '',
-        eventTime: ''
+        eventTime: '',
+        requireApproval: true // default: requer aprovação
       });
     }
 
@@ -31,7 +32,7 @@ router.get('/', verifyToken, async (req, res) => {
 // Update event settings (admin only)
 router.put('/', verifyToken, isAdmin, async (req, res) => {
   try {
-    const { address, latitude, longitude, eventDate, eventTime } = req.body;
+    const { address, latitude, longitude, eventDate, eventTime, requireApproval } = req.body;
 
     if (!address) {
       return res.status(400).json({ error: 'Address is required' });
@@ -43,6 +44,7 @@ router.put('/', verifyToken, isAdmin, async (req, res) => {
       longitude: longitude || null,
       eventDate: eventDate || '',
       eventTime: eventTime || '',
+      requireApproval: requireApproval !== undefined ? requireApproval : true,
       updatedAt: new Date(),
       updatedBy: req.user.email
     };

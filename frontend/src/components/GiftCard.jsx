@@ -28,7 +28,7 @@ function GiftCard({ gift, onSelect, onUnselect, disabled, isSelected }) {
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary-hover hover:underline mb-3 transition-colors"
         >
-          <span>Ver na loja</span>
+          <span>Link da sugestão</span>
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
           </svg>
@@ -41,13 +41,13 @@ function GiftCard({ gift, onSelect, onUnselect, disabled, isSelected }) {
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
             </svg>
-            <span>Sua escolha</span>
+            <span>Presente reservado por você</span>
           </div>
           <button
             onClick={() => onUnselect(gift.id)}
             className="w-full bg-white border border-border text-accent font-medium py-2.5 px-4 rounded-xl transition-all hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
           >
-            Desfazer
+            Alterar escolha
           </button>
         </div>
       ) : gift.taken ? (
@@ -55,16 +55,16 @@ function GiftCard({ gift, onSelect, onUnselect, disabled, isSelected }) {
           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
           </svg>
-          <span>Já escolhido</span>
+          <span>Já reservado</span>
         </div>
       ) : (
         <button
           onClick={() => onSelect(gift.id)}
           disabled={disabled}
           className="w-full bg-primary hover:bg-primary-hover text-white font-medium py-3 px-4 rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-          aria-label={`Escolher presente ${gift.name}`}
+          aria-label={`Presentear com ${gift.name}`}
         >
-          Escolher
+          Presentear
         </button>
       )}
     </div>

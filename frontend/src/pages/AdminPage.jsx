@@ -20,6 +20,7 @@ function AdminPage({ user }) {
   const [eventLongitude, setEventLongitude] = useState('');
   const [eventDate, setEventDate] = useState('');
   const [eventTime, setEventTime] = useState('');
+  const [requireApproval, setRequireApproval] = useState(true);
   const [activeSection, setActiveSection] = useState('evento');
   const [editingGift, setEditingGift] = useState(null);
 
@@ -58,6 +59,7 @@ function AdminPage({ user }) {
       setEventLongitude(eventSettings.longitude || '');
       setEventDate(eventSettings.eventDate || '');
       setEventTime(eventSettings.eventTime || '');
+      setRequireApproval(eventSettings.requireApproval !== undefined ? eventSettings.requireApproval : true);
     } catch (err) {
       console.error('Error loading admin data:', err);
     } finally {
@@ -122,7 +124,8 @@ function AdminPage({ user }) {
         eventLatitude || null,
         eventLongitude || null,
         eventDate,
-        eventTime
+        eventTime,
+        requireApproval
       );
 
       if (result.error) {
@@ -310,6 +313,21 @@ function AdminPage({ user }) {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                 />
               </div>
+            </div>
+
+            <div className="border-t border-gray-200 pt-4 mt-4">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={requireApproval}
+                  onChange={(e) => setRequireApproval(e.target.checked)}
+                  className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-2 focus:ring-primary"
+                />
+                <div>
+                  <span className="text-sm font-medium text-gray-700">Requer aprovação manual de usuários</span>
+                  <p className="text-xs text-gray-500">Quando ativado, novos usuários precisam ser aprovados por um admin antes de acessar o evento</p>
+                </div>
+              </label>
             </div>
 
             <button

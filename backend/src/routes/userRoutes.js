@@ -42,12 +42,24 @@ router.post('/', verifyToken, async (req, res) => {
       });
     } else {
       // Criar novo usuário
+      // Buscar configurações do evento para verificar se requer aprovação
+      const settingsDoc = await db.collection('eventSettings').doc('main').get();
+      const requireApproval = settingsDoc.exists && settingsDoc.data().requireApproval !== undefined
+        ? settingsDoc.data().requireApproval
+        : true; // default: requer aprovação
+
+      // Status: admin sempre aprovado, outros dependem da configuração
+      let status = 'approved'; // default
+      if (!isAdmin) {
+        status = requireApproval ? 'pending' : 'approved';
+      }
+
       const newUser = {
         userId,
         email,
         displayName,
         photoURL,
-        status: isAdmin ? 'approved' : 'pending',
+        status,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         lastLogin: admin.firestore.FieldValue.serverTimestamp()
       };

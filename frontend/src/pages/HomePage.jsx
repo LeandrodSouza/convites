@@ -136,9 +136,9 @@ function HomePage({ user }) {
       });
 
       setSelectedGift(giftId);
-      alert('Presente selecionado com sucesso!');
+      alert('Tudo certo! Presente reservado com sucesso 💚');
     } catch (err) {
-      alert('Erro ao selecionar presente');
+      alert('Erro ao reservar presente. Tente novamente.');
       console.error(err);
     }
   };
@@ -146,7 +146,7 @@ function HomePage({ user }) {
   const handleUnselectGift = async (giftId) => {
     if (!giftId) return;
 
-    if (!confirm('Deseja realmente desselecionar este presente?')) return;
+    if (!confirm('Deseja alterar sua escolha de presente?')) return;
 
     try {
       const giftRef = doc(db, 'gifts', giftId);
@@ -164,9 +164,9 @@ function HomePage({ user }) {
       });
 
       setSelectedGift(null);
-      alert('Presente deselecionado com sucesso!');
+      alert('Escolha alterada! Você pode escolher outro presente agora.');
     } catch (err) {
-      alert('Erro ao desselecionar presente');
+      alert('Erro ao alterar escolha. Tente novamente.');
       console.error(err);
     }
   };
@@ -249,10 +249,13 @@ function HomePage({ user }) {
                   />
                 )}
                 <div>
-                  <h1 className="text-lg font-medium text-accent tracking-tight">
+                  <p className="text-sm text-primary font-medium">
+                    Olá, {user.displayName || 'Convidado'}! 💚
+                  </p>
+                  <h1 className="text-base font-medium text-accent tracking-tight">
                     Brunch de Casa Nova
                   </h1>
-                  <p className="text-sm text-gray-600 font-medium">Família Andrade Silva convida</p>
+                  <p className="text-xs text-gray-600">Família Andrade Silva convida</p>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -321,11 +324,6 @@ function HomePage({ user }) {
               label="Local"
               onClick={() => scrollToSection(localRef)}
             />
-            <Story
-              icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
-              label="Confirmar"
-              onClick={() => alert('Você já está confirmado! ✓')}
-            />
           </div>
         </div>
 
@@ -382,7 +380,8 @@ function HomePage({ user }) {
           if (myGifts.length > 0) {
             return (
               <div className="bg-white rounded-card border border-border shadow-subtle p-5">
-                <h3 className="text-base font-medium text-accent mb-4 tracking-tight">Sua Escolha</h3>
+                <h3 className="text-base font-medium text-accent mb-1 tracking-tight">Seu Presente</h3>
+                <p className="text-xs text-gray-500 mb-4">Presente que você reservou para os anfitriões</p>
                 <div className="grid grid-cols-1 gap-4">
                   {myGifts.map((gift) => (
                     <GiftCard
@@ -403,7 +402,7 @@ function HomePage({ user }) {
 
         {/* Lista de Presentes */}
         <div ref={listaRef} className="bg-white rounded-card border border-border shadow-subtle p-5">
-          <h3 className="text-base font-medium text-accent mb-4 tracking-tight">Lista de Presentes</h3>
+          <h3 className="text-base font-medium text-accent mb-4 tracking-tight">Escolha um presente para nos ajudar a montar nosso lar 💚</h3>
           {(() => {
             const userName = user.displayName || user.email;
             const hasSelectedGift = gifts.some(g => g.takenBy === userName);
@@ -412,7 +411,7 @@ function HomePage({ user }) {
               return (
                 <div className="bg-brand-light border border-primary/20 p-3 rounded-xl mb-4">
                   <p className="text-sm text-primary">
-                    Voce ja escolheu um presente. Para escolher outro, desselecione o atual primeiro.
+                    Você já reservou um presente. Para escolher outro, altere sua escolha primeiro.
                   </p>
                 </div>
               );
