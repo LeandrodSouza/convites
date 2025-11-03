@@ -22,8 +22,8 @@ function LoginPage() {
         if (!mounted) return;
 
         if (result?.user) {
-          const adminEmails = import.meta.env.VITE_ADMIN_EMAILS?.split(',').map(e => e.trim()) || [];
-          const isAdmin = adminEmails.includes(result.user.email);
+          const adminEmails = (import.meta.env.VITE_ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
+          const isAdmin = result.user.email && adminEmails.includes(result.user.email.toLowerCase());
 
           // Se tem returnUrl (veio de um convite), vai para lá
           if (returnUrl) {
@@ -50,8 +50,8 @@ function LoginPage() {
       if (!mounted) return;
 
       if (user) {
-        const adminEmails = import.meta.env.VITE_ADMIN_EMAILS?.split(',').map(e => e.trim()) || [];
-        const isAdmin = adminEmails.includes(user.email);
+        const adminEmails = (import.meta.env.VITE_ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
+        const isAdmin = user.email && adminEmails.includes(user.email.toLowerCase());
 
         // Se tem returnUrl, vai para lá
         if (returnUrl) {
@@ -82,8 +82,8 @@ function LoginPage() {
       try {
         const result = await signInWithPopup(auth, googleProvider);
 
-        const adminEmails = import.meta.env.VITE_ADMIN_EMAILS?.split(',').map(e => e.trim()) || [];
-        const isAdmin = adminEmails.includes(result.user.email);
+        const adminEmails = (import.meta.env.VITE_ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
+        const isAdmin = result.user.email && adminEmails.includes(result.user.email.toLowerCase());
 
         if (returnUrl) {
           navigate(returnUrl);
