@@ -234,8 +234,14 @@ function HomePage({ user }) {
   const isAdmin = adminEmails.includes(user.email);
 
   return (
-    <div className="min-h-screen bg-secondary">
-      <div className="max-w-2xl mx-auto pb-24">
+    <div className="min-h-screen bg-secondary relative">
+      {/* Background Image */}
+      <div
+        className="fixed inset-0 bg-center bg-no-repeat bg-contain opacity-10 pointer-events-none"
+        style={{ backgroundImage: 'url(/nossobrunch.png)' }}
+      />
+
+      <div className="max-w-2xl mx-auto pb-24 relative z-10">
         {/* Top Bar */}
         <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-border mb-6">
           <div className="px-4 py-3">

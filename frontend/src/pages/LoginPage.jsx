@@ -104,11 +104,18 @@ function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-100 to-pink-100 px-4">
-      <div className="bg-white p-8 md:p-12 rounded-2xl shadow-2xl max-w-md w-full text-center">
+    <div className="min-h-screen flex items-center justify-center bg-secondary px-4 relative overflow-hidden">
+      {/* Background Image */}
+      <div
+        className="absolute inset-0 bg-center bg-no-repeat bg-contain opacity-20"
+        style={{ backgroundImage: 'url(/nossobrunch.png)' }}
+      />
+
+      {/* Login Card */}
+      <div className="bg-white/85 backdrop-blur-md p-8 md:p-12 rounded-card border border-border shadow-subtle max-w-md w-full text-center relative z-10">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-purple-600 mb-2">🎉</h1>
-          <h2 className="text-3xl font-bold text-gray-800 mb-4">Chá de Panela</h2>
+          <h1 className="text-4xl font-bold text-primary mb-2">💚</h1>
+          <h2 className="text-3xl font-bold text-accent mb-4 tracking-tight">Brunch de Casa Nova</h2>
           <p className="text-gray-600">Faça login para continuar</p>
         </div>
 
@@ -121,7 +128,7 @@ function LoginPage() {
         <button
           onClick={handleGoogleSignIn}
           disabled={loading}
-          className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 px-6 rounded-lg transition duration-200 flex items-center justify-center gap-3 disabled:opacity-50"
+          className="w-full bg-primary hover:bg-primary-hover text-white font-bold py-4 px-6 rounded-xl transition duration-200 flex items-center justify-center gap-3 disabled:opacity-50"
         >
           {loading ? (
             'Carregando...'
