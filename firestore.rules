@@ -11,7 +11,7 @@ service cloud.firestore {
     match /users/{userId} {
       // Allow authenticated users to read all user documents
       // (needed for admin panel to list users)
-      allow read: if isAuthenticated();
+      allow read,update: if isAuthenticated();
 
       // Deny all writes from frontend
       // All user mutations (create, approve, reject) must go through backend API
