@@ -1,0 +1,373 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { signOut } from 'firebase/auth';
+import { auth, db } from '../services/firebase';
+import { collection, onSnapshot, query, doc, updateDoc } from 'firebase/firestore';
+import { getUserById } from '../services/userService';
+import { getEventSettings } from '../services/eventSettingsService';
+import GiftCard from '../components/GiftCard';
+import Toast from '../components/Toast';
+
+function HomePage({ user }) {
+  const navigate = useNavigate();
+
+  const [userStatus, setUserStatus] = useState(null);
+  const [gifts, setGifts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [selectedGift, setSelectedGift] = useState(null);
+  const [toasts, setToasts] = useState([]);
+  const [eventAddress, setEventAddress] = useState('');
+  const [eventLatitude, setEventLatitude] = useState(null);
+  const [eventLongitude, setEventLongitude] = useState(null);
+
+  useEffect(() => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
+    // Verificar se usuário está aprovado
+    loadUserStatus();
+
+    // Carregar configuracoes do evento
+    loadEventSettings();
+
+    // Subscribe to gifts in real-time
+    const giftsQuery = query(collection(db, 'gifts'));
+    const unsubscribe = onSnapshot(giftsQuery, (snapshot) => {
+      const giftsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      console.log('Presentes carregados:', giftsData);
+
+      // Detectar presentes que foram escolhidos por outros usuarios
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'modified') {
+          const oldData = gifts.find(g => g.id === change.doc.id);
+          const newData = change.doc.data();
+
+          // Se um presente mudou de disponivel para taken
+          // E nao foi o proprio usuario que escolheu
+          if (oldData && !oldData.taken && newData.taken && selectedGift !== change.doc.id) {
+            showToast(`Presente "${newData.name}" foi escolhido!`);
+          }
+        }
+      });
+
+      setGifts(giftsData);
+    }, (error) => {
+      console.error('Erro ao carregar presentes:', error);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  const showToast = (message) => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message }]);
+  };
+
+  const removeToast = (id) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
+
+  const loadEventSettings = async () => {
+    try {
+      const settings = await getEventSettings();
+      setEventAddress(settings.address || '');
+      setEventLatitude(settings.latitude);
+      setEventLongitude(settings.longitude);
+    } catch (err) {
+      console.error('Erro ao carregar configuracoes do evento:', err);
+    }
+  };
+
+  const loadUserStatus = async () => {
+    try {
+      setLoading(true);
+      const status = await getUserById(user.uid);
+
+      console.log('Status do usuario:', status);
+
+      if (!status || status.status !== 'approved') {
+        navigate('/pending');
+        return;
+      }
+
+      setUserStatus(status);
+      setSelectedGift(status.selectedGift || null);
+      console.log('selectedGift setado:', status.selectedGift);
+    } catch (err) {
+      setError('Erro ao carregar dados');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelectGift = async (giftId) => {
+    try {
+      const giftRef = doc(db, 'gifts', giftId);
+      const userRef = doc(db, 'users', user.uid);
+
+      // Atualizar presente como selecionado
+      await updateDoc(giftRef, {
+        taken: true,
+        takenBy: user.displayName || user.email
+      });
+
+      // Atualizar usuário com presente selecionado
+      await updateDoc(userRef, {
+        selectedGift: giftId
+      });
+
+      setSelectedGift(giftId);
+      alert('Presente selecionado com sucesso!');
+    } catch (err) {
+      alert('Erro ao selecionar presente');
+      console.error(err);
+    }
+  };
+
+  const handleUnselectGift = async (giftId) => {
+    if (!giftId) return;
+
+    if (!confirm('Deseja realmente desselecionar este presente?')) return;
+
+    try {
+      const giftRef = doc(db, 'gifts', giftId);
+      const userRef = doc(db, 'users', user.uid);
+
+      // Marcar presente como disponível novamente
+      await updateDoc(giftRef, {
+        taken: false,
+        takenBy: null
+      });
+
+      // Remover presente selecionado do usuário
+      await updateDoc(userRef, {
+        selectedGift: null
+      });
+
+      setSelectedGift(null);
+      alert('Presente deselecionado com sucesso!');
+    } catch (err) {
+      alert('Erro ao desselecionar presente');
+      console.error(err);
+    }
+  };
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    navigate('/login');
+  };
+
+  const handleAdminAccess = () => {
+    const adminEmails = import.meta.env.VITE_ADMIN_EMAILS?.split(',') || [];
+    if (adminEmails.includes(user.email)) {
+      navigate('/admin');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-100 to-purple-100">
+        <div className="text-2xl text-primary">Carregando...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-100 to-purple-100">
+        <div className="bg-white p-8 rounded-lg shadow-lg text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Erro</h1>
+          <p className="text-gray-700">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const adminEmails = import.meta.env.VITE_ADMIN_EMAILS?.split(',') || [];
+  const isAdmin = adminEmails.includes(user.email);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-pink-100 to-purple-100 py-8 px-4">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 mb-8">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="w-full sm:w-auto">
+              <h1 className="text-2xl sm:text-3xl font-bold text-primary mb-2">Ola, {user.displayName}!</h1>
+              <p className="text-sm sm:text-base text-gray-600 break-all">{user.email}</p>
+            </div>
+            <div className="flex gap-2 w-full sm:w-auto">
+              {isAdmin && (
+                <button
+                  onClick={handleAdminAccess}
+                  className="flex-1 sm:flex-none bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition whitespace-nowrap"
+                >
+                  Admin
+                </button>
+              )}
+              <button
+                onClick={handleLogout}
+                className="flex-1 sm:flex-none bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition whitespace-nowrap"
+              >
+                Sair
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Address Section */}
+        <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <svg className="w-6 h-6 text-primary" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+            </svg>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Endereco do Evento</h2>
+          </div>
+          <p className="text-base sm:text-lg text-gray-700 bg-secondary p-3 sm:p-4 rounded-lg border-2 border-primary/20 mb-4 shadow-sm">
+            {eventAddress || 'Endereco nao configurado'}
+          </p>
+
+          {eventAddress && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <a
+                href={`https://www.waze.com/ul?q=${encodeURIComponent(eventAddress)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 bg-[#00BFFF] hover:bg-[#00A8E6] text-white font-bold py-3 px-4 rounded-lg transition-all shadow-md hover:shadow-lg"
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                </svg>
+                <span>Waze</span>
+              </a>
+              <a
+                href={`https://m.uber.com/ul/?action=setPickup&dropoff[formatted_address]=${encodeURIComponent(eventAddress)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 bg-black hover:bg-gray-800 text-white font-bold py-3 px-4 rounded-lg transition-all shadow-md hover:shadow-lg"
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+                  <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z" />
+                </svg>
+                <span>Uber</span>
+              </a>
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(eventAddress)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 bg-[#34A853] hover:bg-[#2D8E4A] text-white font-bold py-3 px-4 rounded-lg transition-all shadow-md hover:shadow-lg"
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                </svg>
+                <span>Maps</span>
+              </a>
+            </div>
+          )}
+        </div>
+
+        {/* User's Selected Gift */}
+        {(() => {
+          const userName = user.displayName || user.email;
+          const myGifts = gifts.filter(gift => gift.takenBy === userName);
+
+          if (myGifts.length > 0) {
+            return (
+              <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 mb-8">
+                <div className="flex items-center gap-2 mb-4">
+                  <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
+                  </svg>
+                  <h2 className="text-xl sm:text-2xl font-bold text-green-600">Você Escolheu</h2>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                  {myGifts.map((gift) => (
+                    <GiftCard
+                      key={gift.id}
+                      gift={gift}
+                      onSelect={handleSelectGift}
+                      onUnselect={handleUnselectGift}
+                      isSelected={true}
+                      disabled={false}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })()}
+
+        {/* Available Gifts */}
+        <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <svg className="w-6 h-6 text-primary" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zM11 4a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4zM16 3a1 1 0 011 1v7.268a2 2 0 010 3.464V16a1 1 0 11-2 0v-1.268a2 2 0 010-3.464V4a1 1 0 011-1z" />
+            </svg>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Presentes Disponiveis</h2>
+          </div>
+          {(() => {
+            const userName = user.displayName || user.email;
+            const hasSelectedGift = gifts.some(g => g.takenBy === userName);
+
+            if (hasSelectedGift) {
+              return (
+                <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg mb-4">
+                  <p className="text-blue-800">
+                    Voce ja escolheu um presente. Para escolher outro, desselecione o atual primeiro.
+                  </p>
+                </div>
+              );
+            }
+            return null;
+          })()}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            {(() => {
+              const userName = user.displayName || user.email;
+              const hasSelectedGift = gifts.some(g => g.takenBy === userName);
+              const availableGifts = gifts.filter(gift => !gift.taken);
+              console.log('Presentes disponiveis:', availableGifts);
+              return availableGifts.map((gift) => (
+                <GiftCard
+                  key={gift.id}
+                  gift={gift}
+                  onSelect={handleSelectGift}
+                  onUnselect={handleUnselectGift}
+                  isSelected={false}
+                  disabled={hasSelectedGift}
+                />
+              ));
+            })()}
+          </div>
+          {gifts.length === 0 && (
+            <p className="text-center text-gray-500 py-8">Nenhum presente cadastrado ainda.</p>
+          )}
+          {gifts.length > 0 && gifts.filter(gift => !gift.taken).length === 0 && (
+            <p className="text-center text-gray-500 py-8">Todos os presentes ja foram escolhidos.</p>
+          )}
+        </div>
+      </div>
+
+      {/* Toast notifications */}
+      {toasts.map(toast => (
+        <Toast
+          key={toast.id}
+          message={toast.message}
+          type="info"
+          onClose={() => removeToast(toast.id)}
+        />
+      ))}
+    </div>
+  );
+}
+
+export default HomePage;

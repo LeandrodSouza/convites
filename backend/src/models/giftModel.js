@@ -5,6 +5,7 @@ const createGift = async (giftData) => {
   const gift = {
     name: giftData.name,
     link: giftData.link || '',
+    imagePath: giftData.imagePath || '',
     taken: false,
     takenBy: null,
     takenAt: null,

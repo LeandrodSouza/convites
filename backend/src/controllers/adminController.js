@@ -31,17 +31,74 @@ const generateInvite = async (req, res) => {
 
 const addGift = async (req, res) => {
   try {
-    const { name, link } = req.body;
+    const { name, link, imagePath } = req.body;
 
     if (!name) {
       return res.status(400).json({ error: 'Gift name is required' });
     }
 
-    const gift = await createGift({ name, link });
+    const gift = await createGift({ name, link, imagePath });
     res.json({ success: true, gift });
   } catch (error) {
     console.error('Error adding gift:', error);
     res.status(500).json({ error: 'Error adding gift' });
+  }
+};
+
+const updateGift = async (req, res) => {
+  try {
+    const { giftId } = req.params;
+    const { name, link, imagePath } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ error: 'Gift name is required' });
+    }
+
+    const { updateGift: updateGiftModel } = require('../models/giftModel');
+    await updateGiftModel(giftId, { name, link, imagePath });
+
+    res.json({ success: true, message: 'Gift updated successfully' });
+  } catch (error) {
+    console.error('Error updating gift:', error);
+    res.status(500).json({ error: 'Error updating gift' });
+  }
+};
+
+const deleteGift = async (req, res) => {
+  try {
+    const { giftId } = req.params;
+    const { getGift } = require('../models/giftModel');
+    const db = getFirestore();
+
+    // Verificar se o presente existe e se está escolhido
+    const gift = await getGift(giftId);
+    if (!gift) {
+      return res.status(404).json({ error: 'Gift not found' });
+    }
+
+    if (gift.taken) {
+      return res.status(400).json({ error: 'Cannot delete a gift that has been selected' });
+    }
+
+    // Deletar imagem se existir
+    if (gift.imagePath) {
+      const fs = require('fs');
+      const path = require('path');
+      const uploadDir = path.join(__dirname, '../../uploads');
+      const imagePath = path.join(uploadDir, gift.imagePath);
+
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
+      }
+    }
+
+    // Deletar presente
+    await db.collection('gifts').doc(giftId).delete();
+
+    res.json({ success: true, message: 'Gift deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting gift:', error);
+    res.status(500).json({ error: 'Error deleting gift' });
   }
 };
 
@@ -88,6 +145,8 @@ const getEmailLogs = async (req, res) => {
 module.exports = {
   generateInvite,
   addGift,
+  updateGift,
+  deleteGift,
   listAllInvites,
   listAllGifts,
   getEmailLogs

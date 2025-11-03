@@ -11,11 +11,16 @@ service cloud.firestore {
     match /users/{userId} {
       // Allow authenticated users to read all user documents
       // (needed for admin panel to list users)
-      allow read,update: if isAuthenticated();
+      allow read: if isAuthenticated();
 
-      // Deny all writes from frontend
-      // All user mutations (create, approve, reject) must go through backend API
-      allow write: if false;
+      // Allow users to update only their own selectedGift field
+      allow update: if isAuthenticated()
+                    && request.auth.uid == userId
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['selectedGift']);
+
+      // All other writes (create, delete) must go through backend API
+      allow create, delete: if false;
     }
 
     // Gifts collection rules (existing functionality)
@@ -38,6 +43,15 @@ service cloud.firestore {
       allow read: if isAuthenticated();
 
       // All writes handled via backend API
+      allow write: if false;
+    }
+
+    // Event settings collection rules
+    match /eventSettings/{docId} {
+      // Allow authenticated users to read event settings
+      allow read: if isAuthenticated();
+
+      // All writes handled via backend API (admin only)
       allow write: if false;
     }
   }

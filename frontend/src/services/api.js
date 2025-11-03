@@ -51,14 +51,37 @@ export const api = {
     return response.json();
   },
 
-  async addGift(authToken, name, link) {
+  async addGift(authToken, name, link, imagePath) {
     const response = await fetch(`${API_URL}/api/admin/gifts`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${authToken}`
       },
-      body: JSON.stringify({ name, link })
+      body: JSON.stringify({ name, link, imagePath })
+    });
+    return response.json();
+  },
+
+  async updateGift(authToken, giftId, name, link, imagePath) {
+    const response = await fetch(`${API_URL}/api/admin/gifts/${giftId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({ name, link, imagePath })
+    });
+    return response.json();
+  },
+
+  async deleteGift(authToken, giftId) {
+    const response = await fetch(`${API_URL}/api/admin/gifts/${giftId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      }
     });
     return response.json();
   },
@@ -123,6 +146,55 @@ export const api = {
         'Authorization': `Bearer ${authToken}`
       },
       body: JSON.stringify({ rejectedBy })
+    });
+    return response.json();
+  },
+
+  // Event Settings endpoints
+  async getEventSettings(authToken) {
+    const response = await fetch(`${API_URL}/api/event-settings`, {
+      headers: {
+        'Authorization': `Bearer ${authToken}`
+      }
+    });
+    return response.json();
+  },
+
+  async updateEventSettings(authToken, address, latitude, longitude, eventDate, eventTime) {
+    const response = await fetch(`${API_URL}/api/event-settings`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({ address, latitude, longitude, eventDate, eventTime })
+    });
+    return response.json();
+  },
+
+  // Upload endpoints
+  async uploadImage(authToken, imageFile) {
+    const formData = new FormData();
+    formData.append('image', imageFile);
+
+    const response = await fetch(`${API_URL}/api/upload/image`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: formData
+    });
+    return response.json();
+  },
+
+  async deleteImage(authToken, imagePath) {
+    const response = await fetch(`${API_URL}/api/upload/image`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({ imagePath })
     });
     return response.json();
   }
