@@ -32,7 +32,11 @@ RUN npm run build
 
 FROM nginx:alpine
 
+# Copy built app
 COPY --from=build /app/dist /usr/share/nginx/html
+
+# Copy custom nginx config for SPA support
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
