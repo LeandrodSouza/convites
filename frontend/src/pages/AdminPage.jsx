@@ -199,9 +199,9 @@ function AdminPage({ user }) {
   ];
 
   return (
-    <div className="min-h-screen bg-secondary flex">
-      {/* Sidebar */}
-      <div className="w-64 bg-white border-r border-border flex flex-col">
+    <div className="min-h-[100svh] bg-secondary flex flex-col sm:flex-row">
+      {/* Sidebar - Desktop only */}
+      <div className="hidden sm:flex sm:w-64 bg-white border-r border-border flex-col">
         {/* Logo/Header */}
         <div className="p-6 border-b border-border">
           <h1 className="text-xl font-medium text-accent tracking-tight">Painel Admin</h1>
@@ -240,9 +240,28 @@ function AdminPage({ user }) {
         </div>
       </div>
 
+      {/* Mobile Header - Mobile only */}
+      <div className="sm:hidden bg-white border-b border-border pt-[env(safe-area-inset-top)] px-4 py-3 sticky top-0 z-20 backdrop-blur-md bg-white/95">
+        <div className="flex items-center justify-between">
+          <div className="min-w-0">
+            <h1 className="text-lg font-medium text-accent tracking-tight">Painel Admin</h1>
+            <p className="text-xs text-gray-500 truncate">{user.email}</p>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="min-w-[44px] min-h-[44px] p-2 hover:bg-secondary rounded-lg transition flex items-center justify-center flex-shrink-0"
+            aria-label="Sair"
+          >
+            <svg className="w-5 h-5 text-accent" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
       {/* Main Content */}
-      <div className="flex-1 overflow-auto">
-        <div className="p-8">
+      <div className="flex-1 overflow-auto pb-[calc(var(--app-tab-h)+env(safe-area-inset-bottom))] sm:pb-0">
+        <div className="p-4 sm:p-8">
 
         {/* Configuracoes do Evento */}
         {activeSection === 'evento' && (
@@ -258,12 +277,12 @@ function AdminPage({ user }) {
                 value={eventAddress}
                 onChange={(e) => setEventAddress(e.target.value)}
                 placeholder="Ex: Av. Bernardo Manoel, 10099. Planalto Itapery."
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                className="w-full px-4 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent focus:outline-none"
                 required
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Data do Evento
@@ -272,7 +291,7 @@ function AdminPage({ user }) {
                   type="date"
                   value={eventDate}
                   onChange={(e) => setEventDate(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                  className="w-full px-4 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent focus:outline-none"
                 />
               </div>
               <div>
@@ -283,12 +302,12 @@ function AdminPage({ user }) {
                   type="time"
                   value={eventTime}
                   onChange={(e) => setEventTime(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                  className="w-full px-4 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent focus:outline-none"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Latitude (opcional)
@@ -298,7 +317,7 @@ function AdminPage({ user }) {
                   value={eventLatitude}
                   onChange={(e) => setEventLatitude(e.target.value)}
                   placeholder="Ex: -3.7327"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                  className="w-full px-4 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent focus:outline-none"
                 />
               </div>
               <div>
@@ -310,7 +329,7 @@ function AdminPage({ user }) {
                   value={eventLongitude}
                   onChange={(e) => setEventLongitude(e.target.value)}
                   placeholder="Ex: -38.5270"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                  className="w-full px-4 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent focus:outline-none"
                 />
               </div>
             </div>
@@ -332,7 +351,7 @@ function AdminPage({ user }) {
 
             <button
               type="submit"
-              className="bg-primary hover:bg-primary-hover text-white font-medium py-2.5 px-6 rounded-xl transition shadow-md hover:shadow-lg"
+              className="w-full sm:w-auto min-h-[44px] bg-primary hover:bg-primary-hover text-white font-medium py-2.5 px-6 rounded-xl transition shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
             >
               Salvar Configuracoes
             </button>
@@ -352,7 +371,9 @@ function AdminPage({ user }) {
           {/* Lista de Presentes */}
           <div className="bg-white rounded-card border border-border shadow-subtle p-6">
             <h2 className="text-2xl font-medium text-accent mb-6 tracking-tight">Todos os Presentes</h2>
-            <div className="overflow-x-auto">
+
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-100">
                   <tr>
@@ -416,10 +437,70 @@ function AdminPage({ user }) {
                   ))}
                 </tbody>
               </table>
-              {gifts.length === 0 && (
-                <p className="text-center text-gray-500 py-8 text-sm">Nenhum presente cadastrado.</p>
-              )}
             </div>
+
+            {/* Mobile Cards */}
+            <div className="md:hidden space-y-3">
+              {gifts.map((gift, idx) => (
+                <div key={idx} className="border border-gray-200 rounded-xl p-4 bg-gray-50">
+                  <div className="mb-3">
+                    <p className="text-xs text-gray-500 mb-1">Presente</p>
+                    <p className="text-sm font-medium text-accent">{gift.name}</p>
+                  </div>
+
+                  {gift.link && (
+                    <div className="mb-3">
+                      <p className="text-xs text-gray-500 mb-1">Link</p>
+                      <a
+                        href={gift.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-primary hover:underline break-all"
+                      >
+                        Ver sugestão
+                      </a>
+                    </div>
+                  )}
+
+                  <div className="mb-3">
+                    <p className="text-xs text-gray-500 mb-1">Status</p>
+                    {gift.taken ? (
+                      <span className="text-sm text-primary font-medium">Escolhido</span>
+                    ) : (
+                      <span className="text-sm text-gray-400">Disponível</span>
+                    )}
+                  </div>
+
+                  {gift.takenBy && (
+                    <div className="mb-3">
+                      <p className="text-xs text-gray-500 mb-1">Escolhido por</p>
+                      <p className="text-sm text-accent">{gift.takenBy}</p>
+                    </div>
+                  )}
+
+                  {!gift.taken && (
+                    <div className="flex gap-2 mt-4">
+                      <button
+                        onClick={() => setEditingGift(gift)}
+                        className="flex-1 min-h-[44px] bg-primary hover:bg-primary-hover text-white font-medium py-2 px-3 rounded-lg transition text-sm"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => handleDeleteGift(gift.id, gift.name)}
+                        className="flex-1 min-h-[44px] bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-3 rounded-lg transition text-sm"
+                      >
+                        Deletar
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {gifts.length === 0 && (
+              <p className="text-center text-gray-500 py-8 text-sm">Nenhum presente cadastrado.</p>
+            )}
           </div>
         </div>
         )}
@@ -432,74 +513,21 @@ function AdminPage({ user }) {
           <div className="mb-8">
             <h3 className="text-lg font-medium text-gray-700 mb-4">Aguardando Aprovacao ({pendingUsers.length})</h3>
             {pendingUsers.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-yellow-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Nome</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Email</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Data</th>
-                      <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">Acoes</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pendingUsers.map((u, idx) => (
-                      <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm">
-                          <div className="flex items-center gap-2">
-                            {u.photoURL && (
-                              <img src={u.photoURL} alt={u.displayName} className="w-8 h-8 rounded-full" />
-                            )}
-                            <span className="font-medium">{u.displayName || '-'}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-sm">{u.email}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {u.createdAt ? new Date(u.createdAt._seconds * 1000).toLocaleDateString('pt-BR') : '-'}
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          <div className="flex gap-2 justify-center">
-                            <button
-                              onClick={() => handleApproveUser(u.userId, u.displayName || u.email)}
-                              className="bg-primary hover:bg-primary-hover text-white font-medium py-1.5 px-4 rounded-lg transition text-xs"
-                            >
-                              Aprovar
-                            </button>
-                            <button
-                              onClick={() => handleRejectUser(u.userId, u.displayName || u.email)}
-                              className="bg-red-600 hover:bg-red-700 text-white font-medium py-1.5 px-4 rounded-lg transition text-xs"
-                            >
-                              Rejeitar
-                            </button>
-                          </div>
-                        </td>
+              <>
+                {/* Desktop Table */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-yellow-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Nome</th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Email</th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Data</th>
+                        <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">Acoes</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="text-center text-gray-500 py-8 text-sm">Nenhum usuario pendente.</p>
-            )}
-          </div>
-
-          <div>
-            <h3 className="text-lg font-medium text-gray-700 mb-4">Usuarios Aprovados ({approvedUsers.length})</h3>
-            {approvedUsers.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-green-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Nome</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Email</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Presente</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {approvedUsers.map((u, idx) => {
-                      const gift = gifts.find(g => g.id === u.selectedGift);
-                      return (
-                        <tr key={idx} className="border-b border-gray-200">
+                    </thead>
+                    <tbody>
+                      {pendingUsers.map((u, idx) => (
+                        <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50">
                           <td className="px-4 py-3 text-sm">
                             <div className="flex items-center gap-2">
                               {u.photoURL && (
@@ -509,19 +537,146 @@ function AdminPage({ user }) {
                             </div>
                           </td>
                           <td className="px-4 py-3 text-sm">{u.email}</td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {u.createdAt ? new Date(u.createdAt._seconds * 1000).toLocaleDateString('pt-BR') : '-'}
+                          </td>
                           <td className="px-4 py-3 text-sm">
-                            {gift ? (
-                              <span className="text-primary font-medium">{gift.name}</span>
-                            ) : (
-                              <span className="text-gray-400">Nenhum</span>
-                            )}
+                            <div className="flex gap-2 justify-center">
+                              <button
+                                onClick={() => handleApproveUser(u.userId, u.displayName || u.email)}
+                                className="bg-primary hover:bg-primary-hover text-white font-medium py-1.5 px-4 rounded-lg transition text-xs"
+                              >
+                                Aprovar
+                              </button>
+                              <button
+                                onClick={() => handleRejectUser(u.userId, u.displayName || u.email)}
+                                className="bg-red-600 hover:bg-red-700 text-white font-medium py-1.5 px-4 rounded-lg transition text-xs"
+                              >
+                                Rejeitar
+                              </button>
+                            </div>
                           </td>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Cards */}
+                <div className="md:hidden space-y-3">
+                  {pendingUsers.map((u, idx) => (
+                    <div key={idx} className="border border-yellow-200 rounded-xl p-4 bg-yellow-50">
+                      <div className="flex items-center gap-3 mb-3">
+                        {u.photoURL && (
+                          <img src={u.photoURL} alt={u.displayName} className="w-12 h-12 rounded-full flex-shrink-0" />
+                        )}
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-accent truncate">{u.displayName || '-'}</p>
+                          <p className="text-xs text-gray-600 truncate">{u.email}</p>
+                        </div>
+                      </div>
+
+                      {u.createdAt && (
+                        <div className="mb-3">
+                          <p className="text-xs text-gray-500 mb-1">Data de cadastro</p>
+                          <p className="text-sm text-accent">{new Date(u.createdAt._seconds * 1000).toLocaleDateString('pt-BR')}</p>
+                        </div>
+                      )}
+
+                      <div className="flex gap-2 mt-4">
+                        <button
+                          onClick={() => handleApproveUser(u.userId, u.displayName || u.email)}
+                          className="flex-1 min-h-[44px] bg-primary hover:bg-primary-hover text-white font-medium py-2 px-3 rounded-lg transition text-sm"
+                        >
+                          Aprovar
+                        </button>
+                        <button
+                          onClick={() => handleRejectUser(u.userId, u.displayName || u.email)}
+                          className="flex-1 min-h-[44px] bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-3 rounded-lg transition text-sm"
+                        >
+                          Rejeitar
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="text-center text-gray-500 py-8 text-sm">Nenhum usuario pendente.</p>
+            )}
+          </div>
+
+          <div>
+            <h3 className="text-lg font-medium text-gray-700 mb-4">Usuarios Aprovados ({approvedUsers.length})</h3>
+            {approvedUsers.length > 0 ? (
+              <>
+                {/* Desktop Table */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-green-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Nome</th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Email</th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Presente</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {approvedUsers.map((u, idx) => {
+                        const gift = gifts.find(g => g.id === u.selectedGift);
+                        return (
+                          <tr key={idx} className="border-b border-gray-200">
+                            <td className="px-4 py-3 text-sm">
+                              <div className="flex items-center gap-2">
+                                {u.photoURL && (
+                                  <img src={u.photoURL} alt={u.displayName} className="w-8 h-8 rounded-full" />
+                                )}
+                                <span className="font-medium">{u.displayName || '-'}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-sm">{u.email}</td>
+                            <td className="px-4 py-3 text-sm">
+                              {gift ? (
+                                <span className="text-primary font-medium">{gift.name}</span>
+                              ) : (
+                                <span className="text-gray-400">Nenhum</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Cards */}
+                <div className="md:hidden space-y-3">
+                  {approvedUsers.map((u, idx) => {
+                    const gift = gifts.find(g => g.id === u.selectedGift);
+                    return (
+                      <div key={idx} className="border border-green-200 rounded-xl p-4 bg-green-50">
+                        <div className="flex items-center gap-3 mb-3">
+                          {u.photoURL && (
+                            <img src={u.photoURL} alt={u.displayName} className="w-12 h-12 rounded-full flex-shrink-0" />
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-accent truncate">{u.displayName || '-'}</p>
+                            <p className="text-xs text-gray-600 truncate">{u.email}</p>
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Presente escolhido</p>
+                          {gift ? (
+                            <p className="text-sm text-primary font-medium">{gift.name}</p>
+                          ) : (
+                            <p className="text-sm text-gray-400">Nenhum</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
             ) : (
               <p className="text-center text-gray-500 py-8 text-sm">Nenhum usuario aprovado ainda.</p>
             )}
@@ -537,6 +692,27 @@ function AdminPage({ user }) {
           </div>
         )}
 
+        </div>
+      </div>
+
+      {/* Mobile Tab Bar - Mobile only */}
+      <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-border pb-[env(safe-area-inset-bottom)] z-30 h-[var(--app-tab-h)]">
+        <div className="grid grid-cols-4 gap-1 px-2 h-full items-center">
+          {menuItems.map(item => (
+            <button
+              key={item.id}
+              onClick={() => setActiveSection(item.id)}
+              className={`flex flex-col items-center gap-1 py-2 px-1 rounded-lg transition min-h-[44px] justify-center ${
+                activeSection === item.id
+                  ? 'text-primary bg-brand-light'
+                  : 'text-gray-600 hover:bg-secondary'
+              }`}
+              aria-label={item.label}
+            >
+              {item.icon}
+              <span className="text-[10px] font-medium leading-tight">{item.label}</span>
+            </button>
+          ))}
         </div>
       </div>
 

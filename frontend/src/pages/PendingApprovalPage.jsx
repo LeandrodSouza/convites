@@ -19,7 +19,7 @@ function PendingApprovalPage({ user }) {
   };
 
   return (
-    <div className="min-h-screen bg-secondary flex items-center justify-center p-4">
+    <div className="min-h-[100svh] bg-secondary flex items-center justify-center p-4">
       <div className="max-w-lg w-full">
         {/* Top Header */}
         <div className="text-center mb-8">
@@ -116,7 +116,7 @@ function PendingApprovalPage({ user }) {
           <button
             onClick={handleLogout}
             disabled={loading}
-            className="w-full bg-white border border-border hover:bg-secondary text-accent font-medium py-3 px-4 rounded-xl transition-all disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+            className="w-full min-h-[44px] bg-white border border-border hover:bg-secondary text-accent font-medium py-3 px-4 rounded-xl transition-all disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
           >
             {loading ? 'Saindo...' : 'Sair'}
           </button>

@@ -104,7 +104,7 @@ function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-secondary px-4 relative overflow-hidden">
+    <div className="min-h-[100svh] flex items-center justify-center bg-secondary px-4 relative overflow-hidden">
       {/* Background Image */}
       <div
         className="absolute inset-0 bg-center bg-no-repeat bg-contain opacity-20"

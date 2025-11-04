@@ -89,7 +89,7 @@ function AdminGiftForm({ onSubmit }) {
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+          className="w-full px-4 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent focus:outline-none"
           placeholder="Ex: Panela de pressão"
           required
         />
@@ -103,7 +103,7 @@ function AdminGiftForm({ onSubmit }) {
           type="url"
           value={link}
           onChange={(e) => setLink(e.target.value)}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+          className="w-full px-4 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent focus:outline-none"
           placeholder="https://..."
         />
       </div>
@@ -156,7 +156,7 @@ function AdminGiftForm({ onSubmit }) {
       <button
         type="submit"
         disabled={loading}
-        className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3 px-6 rounded-lg transition disabled:opacity-50"
+        className="w-full min-h-[44px] bg-primary hover:bg-primary-hover text-white font-bold py-3 px-6 rounded-xl transition disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
       >
         {loading ? 'Adicionando...' : 'Adicionar Presente'}
       </button>

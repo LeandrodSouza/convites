@@ -234,16 +234,16 @@ function HomePage({ user }) {
   const isAdmin = adminEmails.includes(user.email);
 
   return (
-    <div className="min-h-screen bg-secondary relative">
+    <div className="min-h-[100svh] bg-secondary relative">
       {/* Background Image */}
       <div
         className="fixed inset-0 bg-center bg-no-repeat bg-contain opacity-10 pointer-events-none"
         style={{ backgroundImage: 'url(/nossobrunch.png)' }}
       />
 
-      <div className="max-w-2xl mx-auto pb-24 relative z-10">
+      <div className="mx-auto w-full max-w-screen-sm md:max-w-2xl lg:max-w-4xl pb-[calc(24px+env(safe-area-inset-bottom))] relative z-10">
         {/* Top Bar */}
-        <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-border mb-6">
+        <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-md border-b border-border mb-6 pt-[env(safe-area-inset-top)]">
           <div className="px-4 py-3">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
@@ -268,7 +268,7 @@ function HomePage({ user }) {
                 {isAdmin && (
                   <button
                     onClick={handleAdminAccess}
-                    className="p-2 hover:bg-secondary rounded-lg transition"
+                    className="min-w-[44px] min-h-[44px] p-2 hover:bg-secondary rounded-lg transition flex items-center justify-center"
                     aria-label="Admin"
                   >
                     <svg className="w-5 h-5 text-accent" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
@@ -279,7 +279,7 @@ function HomePage({ user }) {
                 )}
                 <button
                   onClick={handleLogout}
-                  className="p-2 hover:bg-secondary rounded-lg transition"
+                  className="min-w-[44px] min-h-[44px] p-2 hover:bg-secondary rounded-lg transition flex items-center justify-center"
                   aria-label="Sair"
                 >
                   <svg className="w-5 h-5 text-accent" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
@@ -298,7 +298,7 @@ function HomePage({ user }) {
                 <Chip
                   icon={<svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" /></svg>}
                 >
-                  {eventAddress.substring(0, 30)}...
+                  {eventAddress}
                 </Chip>
               )}
               {userStatus?.status === 'approved' && (

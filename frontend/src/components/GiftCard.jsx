@@ -10,11 +10,12 @@ function GiftCard({ gift, onSelect, onUnselect, disabled, isSelected }) {
         : 'hover:shadow-lg hover:-translate-y-0.5'
     }`}>
       {gift.imagePath && (
-        <div className="w-full aspect-video bg-secondary rounded-xl mb-3 flex items-center justify-center overflow-hidden">
+        <div className="w-full aspect-square bg-secondary rounded-xl mb-3 overflow-hidden">
           <img
             src={`${API_URL}/uploads/${gift.imagePath}`}
             alt={gift.name}
-            className="max-w-full max-h-full object-contain"
+            className="w-full h-full object-cover"
+            loading="lazy"
           />
         </div>
       )}
@@ -37,7 +38,7 @@ function GiftCard({ gift, onSelect, onUnselect, disabled, isSelected }) {
 
       {isSelected ? (
         <div className="space-y-2">
-          <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-primary bg-brand-light px-3 py-2 rounded-full">
+          <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-[#2E7D62] bg-[#E7F3EE] px-3 py-2 rounded-full border border-[#2E7D62]/20">
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
             </svg>
@@ -45,13 +46,13 @@ function GiftCard({ gift, onSelect, onUnselect, disabled, isSelected }) {
           </div>
           <button
             onClick={() => onUnselect(gift.id)}
-            className="w-full bg-white border border-border text-accent font-medium py-2.5 px-4 rounded-xl transition-all hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+            className="w-full min-h-[44px] bg-white border border-border text-accent font-medium py-2.5 px-4 rounded-xl transition-all hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
           >
             Alterar escolha
           </button>
         </div>
       ) : gift.taken ? (
-        <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-gray-600 bg-gray-100 px-3 py-2 rounded-full">
+        <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-gray-600 bg-[#F4F0E6] px-3 py-2 rounded-full border border-[#D9D4C7]">
           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
           </svg>
@@ -61,7 +62,7 @@ function GiftCard({ gift, onSelect, onUnselect, disabled, isSelected }) {
         <button
           onClick={() => onSelect(gift.id)}
           disabled={disabled}
-          className="w-full bg-primary hover:bg-primary-hover text-white font-medium py-3 px-4 rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+          className="w-full min-h-[44px] bg-primary hover:bg-primary-hover text-white font-medium py-3 px-4 rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
           aria-label={`Presentear com ${gift.name}`}
         >
           Presentear

@@ -1,10 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 function EditGiftModal({ gift, onClose, onSave }) {
   const [name, setName] = useState(gift.name);
   const [link, setLink] = useState(gift.link || '');
   const [image, setImage] = useState(null);
   const [uploading, setUploading] = useState(false);
+
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -44,12 +52,12 @@ function EditGiftModal({ gift, onClose, onSave }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-card border border-border shadow-subtle max-w-md w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-border px-6 py-4 flex items-center justify-between">
-          <h2 className="text-xl font-medium text-accent tracking-tight">Editar Presente</h2>
+      <div className="bg-white rounded-card border border-border shadow-subtle max-w-md w-full max-h-[80dvh] overflow-y-auto">
+        <div className="sticky top-0 bg-white border-b border-border px-4 sm:px-6 py-4 flex items-center justify-between">
+          <h2 className="text-lg sm:text-xl font-medium text-accent tracking-tight">Editar Presente</h2>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-secondary rounded-lg transition"
+            className="min-w-[44px] min-h-[44px] p-1 hover:bg-secondary rounded-lg transition flex items-center justify-center"
             aria-label="Fechar"
           >
             <svg className="w-5 h-5 text-accent" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
@@ -58,7 +66,7 @@ function EditGiftModal({ gift, onClose, onSave }) {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Nome do Presente *
@@ -67,7 +75,7 @@ function EditGiftModal({ gift, onClose, onSave }) {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="w-full px-4 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent focus:outline-none"
               required
             />
           </div>
@@ -81,7 +89,7 @@ function EditGiftModal({ gift, onClose, onSave }) {
               value={link}
               onChange={(e) => setLink(e.target.value)}
               placeholder="https://..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="w-full px-4 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent focus:outline-none"
             />
           </div>
 
@@ -110,18 +118,18 @@ function EditGiftModal({ gift, onClose, onSave }) {
             </p>
           </div>
 
-          <div className="flex gap-3 pt-4">
+          <div className="flex flex-col sm:flex-row gap-3 pt-4">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 bg-white border border-border hover:bg-secondary text-accent font-medium py-2.5 px-4 rounded-xl transition"
+              className="w-full sm:flex-1 min-h-[44px] bg-white border border-border hover:bg-secondary text-accent font-medium py-2.5 px-4 rounded-xl transition focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={uploading}
-              className="flex-1 bg-primary hover:bg-primary-hover text-white font-medium py-2.5 px-4 rounded-xl transition disabled:opacity-50"
+              className="w-full sm:flex-1 min-h-[44px] bg-primary hover:bg-primary-hover text-white font-medium py-2.5 px-4 rounded-xl transition disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
             >
               {uploading ? 'Salvando...' : 'Salvar'}
             </button>
