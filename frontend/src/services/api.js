@@ -3,12 +3,12 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 export const api = {
   // Invite endpoints
   async verifyInvite(token) {
-    const response = await fetch(`${API_URL}/api/invites/${token}`);
+    const response = await fetch(`${API_URL}/invites/${token}`);
     return response.json();
   },
 
   async useInvite(token, email, name) {
-    const response = await fetch(`${API_URL}/api/invites/${token}/use`, {
+    const response = await fetch(`${API_URL}/invites/${token}/use`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, name })
@@ -17,7 +17,7 @@ export const api = {
   },
 
   async confirmPresence(token) {
-    const response = await fetch(`${API_URL}/api/invites/${token}/confirm`, {
+    const response = await fetch(`${API_URL}/invites/${token}/confirm`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
@@ -26,12 +26,12 @@ export const api = {
 
   // Gift endpoints
   async getGifts() {
-    const response = await fetch(`${API_URL}/api/gifts`);
+    const response = await fetch(`${API_URL}/gifts`);
     return response.json();
   },
 
   async selectGift(giftId, token) {
-    const response = await fetch(`${API_URL}/api/gifts/${giftId}/select`, {
+    const response = await fetch(`${API_URL}/gifts/${giftId}/select`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token })
@@ -41,7 +41,7 @@ export const api = {
 
   // Admin endpoints
   async generateInvite(authToken) {
-    const response = await fetch(`${API_URL}/api/admin/invites/generate`, {
+    const response = await fetch(`${API_URL}/admin/invites/generate`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -52,7 +52,7 @@ export const api = {
   },
 
   async addGift(authToken, name, link, imagePath) {
-    const response = await fetch(`${API_URL}/api/admin/gifts`, {
+    const response = await fetch(`${API_URL}/admin/gifts`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -64,7 +64,7 @@ export const api = {
   },
 
   async updateGift(authToken, giftId, name, link, imagePath) {
-    const response = await fetch(`${API_URL}/api/admin/gifts/${giftId}`, {
+    const response = await fetch(`${API_URL}/admin/gifts/${giftId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -76,7 +76,7 @@ export const api = {
   },
 
   async deleteGift(authToken, giftId) {
-    const response = await fetch(`${API_URL}/api/admin/gifts/${giftId}`, {
+    const response = await fetch(`${API_URL}/admin/gifts/${giftId}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -87,7 +87,7 @@ export const api = {
   },
 
   async getAdminInvites(authToken) {
-    const response = await fetch(`${API_URL}/api/admin/invites`, {
+    const response = await fetch(`${API_URL}/admin/invites`, {
       headers: {
         'Authorization': `Bearer ${authToken}`
       }
@@ -96,7 +96,7 @@ export const api = {
   },
 
   async getAdminGifts(authToken) {
-    const response = await fetch(`${API_URL}/api/admin/gifts`, {
+    const response = await fetch(`${API_URL}/admin/gifts`, {
       headers: {
         'Authorization': `Bearer ${authToken}`
       }
@@ -105,7 +105,7 @@ export const api = {
   },
 
   async getEmailLogs(authToken) {
-    const response = await fetch(`${API_URL}/api/admin/email-logs`, {
+    const response = await fetch(`${API_URL}/admin/email-logs`, {
       headers: {
         'Authorization': `Bearer ${authToken}`
       }
@@ -115,7 +115,7 @@ export const api = {
 
   // User endpoints
   async createOrUpdateUser(authToken, email, displayName, photoURL) {
-    const response = await fetch(`${API_URL}/api/users`, {
+    const response = await fetch(`${API_URL}/users`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -127,7 +127,7 @@ export const api = {
   },
 
   async approveUser(authToken, userId, approvedBy) {
-    const response = await fetch(`${API_URL}/api/users/${userId}/approve`, {
+    const response = await fetch(`${API_URL}/users/${userId}/approve`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -139,7 +139,7 @@ export const api = {
   },
 
   async rejectUser(authToken, userId, rejectedBy) {
-    const response = await fetch(`${API_URL}/api/users/${userId}/reject`, {
+    const response = await fetch(`${API_URL}/users/${userId}/reject`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -152,7 +152,7 @@ export const api = {
 
   // Event Settings endpoints
   async getEventSettings(authToken) {
-    const response = await fetch(`${API_URL}/api/event-settings`, {
+    const response = await fetch(`${API_URL}/event-settings`, {
       headers: {
         'Authorization': `Bearer ${authToken}`
       }
@@ -161,7 +161,7 @@ export const api = {
   },
 
   async updateEventSettings(authToken, address, latitude, longitude, eventDate, eventTime, requireApproval) {
-    const response = await fetch(`${API_URL}/api/event-settings`, {
+    const response = await fetch(`${API_URL}/event-settings`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -177,7 +177,7 @@ export const api = {
     const formData = new FormData();
     formData.append('image', imageFile);
 
-    const response = await fetch(`${API_URL}/api/upload/image`, {
+    const response = await fetch(`${API_URL}/upload/image`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${authToken}`
@@ -188,7 +188,7 @@ export const api = {
   },
 
   async deleteImage(authToken, imagePath) {
-    const response = await fetch(`${API_URL}/api/upload/image`, {
+    const response = await fetch(`${API_URL}/upload/image`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
