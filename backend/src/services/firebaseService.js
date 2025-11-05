@@ -12,7 +12,6 @@ const initializeFirebase = () => {
     });
 
     db = admin.firestore();
-    console.log('Firebase initialized successfully');
   } catch (error) {
     console.error('Error initializing Firebase:', error);
     throw error;

@@ -99,8 +99,6 @@ function HomePage({ user }) {
     try {
       setLoading(true);
       const status = await getUserById(user.uid);
-      console.log('DEBUG - Dados do usuário retornados:', status);
-
       if (!status || status.status !== 'approved') {
         navigate('/pending');
         return;
@@ -112,10 +110,8 @@ function HomePage({ user }) {
       if (Array.isArray(status.selectedGifts)) {
         // Já tem selectedGifts (plural) como array
         userSelectedGifts = status.selectedGifts;
-        console.log('DEBUG - selectedGifts já existe:', userSelectedGifts);
       } else if (status.selectedGift) {
         // Tem selectedGift (singular) - precisa migrar
-        console.log('DEBUG - Migrando de selectedGift (singular) para selectedGifts (plural)');
         userSelectedGifts = status.selectedGift ? [status.selectedGift] : [];
 
         // Atualizar no Firestore para o novo formato
@@ -125,13 +121,11 @@ function HomePage({ user }) {
             selectedGifts: userSelectedGifts,
             selectedGift: null  // Remover campo antigo
           });
-          console.log('DEBUG - Migração concluída!');
         } catch (migrationErr) {
           console.error('DEBUG - Erro na migração:', migrationErr);
         }
       } else {
         // Não tem nem selectedGifts nem selectedGift - criar campo novo
-        console.log('DEBUG - Criando selectedGifts pela primeira vez');
         try {
           const userRef = doc(db, 'users', user.uid);
           await updateDoc(userRef, {
@@ -142,7 +136,6 @@ function HomePage({ user }) {
         }
       }
 
-      console.log('DEBUG - selectedGifts final:', userSelectedGifts);
       setSelectedGifts(userSelectedGifts);
     } catch (err) {
       console.error('DEBUG - Erro ao carregar status:', err);
@@ -153,10 +146,6 @@ function HomePage({ user }) {
   };
 
   const handleSelectGift = async (giftId) => {
-    console.log('DEBUG - Iniciando seleção de presente:', giftId);
-    console.log('DEBUG - User UID:', user?.uid);
-    console.log('DEBUG - User displayName:', user?.displayName);
-
     if (!giftId || !user?.uid || !user?.displayName) {
       showToast('Erro ao selecionar presente. Tente novamente.');
       return;
@@ -168,27 +157,28 @@ function HomePage({ user }) {
       return;
     }
 
+    const gift = gifts.find(g => g.id === giftId);
+    if (gift && gift.takenBy && gift.takenBy.length > 0) {
+        showToast('Opa! Parece que outra pessoa já escolheu este presente.');
+        return;
+    }
+
     try {
       const giftRef = doc(db, 'gifts', giftId);
       const userRef = doc(db, 'users', user.uid);
 
-      console.log('DEBUG - Atualizando gift no Firestore...');
       // Atualizar no Firestore
       await updateDoc(giftRef, {
         takenBy: arrayUnion(user.displayName)
       });
 
-      console.log('DEBUG - Atualizando user no Firestore...');
       await updateDoc(userRef, {
         selectedGifts: arrayUnion(giftId)
       });
 
-      console.log('DEBUG - Atualizações no Firestore concluídas!');
-
       // Atualizar estado local
       setSelectedGifts(prev => {
         const newList = !prev.includes(giftId) ? [...prev, giftId] : prev;
-        console.log('DEBUG - Novo estado selectedGifts:', newList);
         return newList;
       });
       showToast('Oba! Presente escolhido! 💚');
@@ -264,12 +254,6 @@ function HomePage({ user }) {
   const isAdmin = (import.meta.env.VITE_ADMIN_EMAILS || '').includes(user.email);
   const mySelectedGifts = gifts.filter(g => selectedGifts.includes(g.id));
   const availableGifts = gifts.filter(g => !selectedGifts.includes(g.id));
-
-  // Debug logs
-  console.log('DEBUG - Total de presentes:', gifts.length);
-  console.log('DEBUG - IDs selecionados pelo usuário:', selectedGifts);
-  console.log('DEBUG - Meus presentes escolhidos:', mySelectedGifts.length);
-  console.log('DEBUG - Presentes disponíveis:', availableGifts.length);
 
   return (
     <div className="bg-secondary min-h-screen font-sans text-accent relative">
