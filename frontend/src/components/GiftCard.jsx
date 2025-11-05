@@ -1,11 +1,11 @@
 import { useState } from 'react';
+import { API_URL } from '../services/api'; // Import the centralized API_URL
 
 function GiftCard({ gift, onSelect, onUnselect, disabled, isSelected }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // The image path will now be a relative path, which will be correctly
-  // proxied by the development server or production environment (e.g., Nginx).
-  const imageUrl = `/api/uploads/${gift.imagePath}`;
+  // Use the centralized API_URL to construct the image path
+  const imageUrl = `${API_URL}/uploads/${gift.imagePath}`;
 
   const handleImageClick = (e) => {
     e.stopPropagation();
