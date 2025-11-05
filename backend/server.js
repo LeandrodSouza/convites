@@ -14,7 +14,7 @@ app.use(express.json());
 
 // Servir arquivos estaticos (imagens de upload)
 const path = require('path');
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 const inviteRoutes = require('./src/routes/inviteRoutes');
