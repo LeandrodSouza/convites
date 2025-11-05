@@ -167,7 +167,8 @@ function HomePage({ user }) {
   if (error) return <div className="h-screen flex items-center justify-center bg-red-100"><p>{error}</p></div>;
 
   const isAdmin = (import.meta.env.VITE_ADMIN_EMAILS || '').includes(user.email);
-  const myGifts = gifts.filter(g => selectedGifts.includes(g.id));
+  const mySelectedGifts = gifts.filter(g => selectedGifts.includes(g.id));
+  const availableGifts = gifts.filter(g => !selectedGifts.includes(g.id));
 
   return (
     <div className="bg-secondary min-h-screen font-sans text-accent relative">
@@ -220,11 +221,11 @@ function HomePage({ user }) {
           <h2 className="text-4xl font-meow text-accent mb-4 text-center">Nossa lista de presentes</h2>
           <p className="text-center text-gray-600 mb-8">Sua presença é nosso maior presente! Mas, se quiser nos ajudar a montar nosso cantinho, ficaremos muito felizes.</p>
 
-          {myGifts.length > 0 && (
+          {mySelectedGifts.length > 0 && (
             <div className="mb-8">
               <h3 className="text-xl font-semibold text-accent mb-4">Seus presentes escolhidos:</h3>
               <div className="grid grid-cols-1 gap-4">
-                {myGifts.map(gift => (
+                {mySelectedGifts.map(gift => (
                   <GiftCard
                     key={gift.id}
                     gift={gift}
@@ -239,17 +240,16 @@ function HomePage({ user }) {
 
           <h3 className="text-xl font-semibold text-accent mb-4">Disponíveis para presentear:</h3>
           <div className="grid grid-cols-1 gap-4">
-            {gifts.map(gift => (
+            {availableGifts.map(gift => (
               <GiftCard
                 key={gift.id}
                 gift={gift}
-                isSelected={selectedGifts.includes(gift.id)}
+                isSelected={false}
                 onSelect={() => handleSelectGift(gift.id)}
-                onUnselect={() => handleUnselectGift(gift.id)}
               />
             ))}
           </div>
-          {gifts.length === 0 && <p className="text-center text-gray-500 mt-6">Nenhum presente na lista ainda. Volte em breve!</p>}
+          {availableGifts.length === 0 && mySelectedGifts.length === 0 && <p className="text-center text-gray-500 mt-6">Nenhum presente na lista ainda. Volte em breve!</p>}
         </div>
       </main>
 

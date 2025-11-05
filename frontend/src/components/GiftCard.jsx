@@ -76,7 +76,7 @@ function GiftCard({ gift, onSelect, onUnselect, isSelected }) {
               onClick={() => onSelect(gift.id)}
               className="px-3 py-2 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-primary-hover transition"
             >
-              Quero dar!
+              Eu quero!
             </button>
           )}
         </div>
