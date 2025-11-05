@@ -25,57 +25,59 @@ function GiftCard({ gift, onSelect, onUnselect, isSelected }) {
   return (
     <>
       <div className={`
-        flex items-center gap-4 p-4 rounded-xl border transition-all duration-300
+        p-4 rounded-xl border transition-all duration-300
         ${isSelected ? 'bg-green-100 border-green-400' : 'bg-white border-border'}
         ${isTaken && !isSelected ? 'opacity-70' : ''}
       `}>
-        {gift.imagePath && (
-          <div
-            className="flex-shrink-0 w-16 h-16 rounded-full bg-secondary overflow-hidden cursor-pointer"
-            onClick={handleImageClick}
-          >
-            <img
-              src={imageUrl}
-              alt={gift.name}
-              className="w-full h-full object-cover"
-              loading="lazy"
-            />
-          </div>
-        )}
+        <div className="flex gap-3">
+          {gift.imagePath && (
+            <div
+              className="flex-shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-secondary overflow-hidden cursor-pointer"
+              onClick={handleImageClick}
+            >
+              <img
+                src={imageUrl}
+                alt={gift.name}
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
+            </div>
+          )}
 
-        <div className="flex-grow">
-          <h3 className="font-semibold text-accent leading-tight">{gift.name}</h3>
+          <div className="flex-grow min-w-0">
+            <h3 className="font-semibold text-accent leading-tight">{gift.name}</h3>
 
           {isTaken && (
             <p className="text-xs text-gray-500 mt-1">
       {takenByCount} pessoa{takenByCount > 1 ? 's' : ''} já {takenByCount > 1 ? 'escolheram' : 'escolheu'}.      </p>
           )}
 
-          {gift.link && (
-            <a
-              href={gift.link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-primary hover:underline mt-1 inline-block"
-              onClick={(e) => e.stopPropagation()}
-            >
-              Ver sugestão
-            </a>
-          )}
+            {gift.link && (
+              <a
+                href={gift.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-primary hover:underline mt-1 inline-block"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Ver sugestão
+              </a>
+            )}
+          </div>
         </div>
 
-        <div className="flex-shrink-0">
+        <div className="mt-3">
           {isSelected ? (
             <button
               onClick={() => onUnselect(gift.id)}
-              className="px-3 py-2 text-sm font-semibold text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition"
+              className="w-full px-3 py-2 text-sm font-semibold text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition"
             >
               Ops, Mudei de ideia 😅
             </button>
           ) : (
             <button
               onClick={() => onSelect(gift.id)}
-              className="px-3 py-2 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-primary-hover transition"
+              className="w-full px-3 py-2 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-primary-hover transition"
             >
               Esse eu levo! 🎁
             </button>
