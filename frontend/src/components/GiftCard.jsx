@@ -47,11 +47,10 @@ function GiftCard({ gift, onSelect, onUnselect, isSelected }) {
           <div className="flex-grow min-w-0">
             <h3 className="font-semibold text-accent leading-tight">{gift.name}</h3>
 
-            {isTaken && (
-              <p className="text-xs text-gray-500 mt-1">
-                {takenByCount} pessoa{takenByCount > 1 ? 's' : ''} já escolheram.
-              </p>
-            )}
+          {isTaken && (
+            <p className="text-xs text-gray-500 mt-1">
+      {takenByCount} pessoa{takenByCount > 1 ? 's' : ''} já {takenByCount > 1 ? 'escolheram' : 'escolheu'}.      </p>
+          )}
 
             {gift.link && (
               <a
