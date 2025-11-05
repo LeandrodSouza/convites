@@ -40,15 +40,27 @@ function HomePage({ user }) {
 
     const giftsQuery = query(collection(db, 'gifts'));
     const unsubscribe = onSnapshot(giftsQuery, (snapshot) => {
-      const giftsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const giftsData = snapshot.docs.map(doc => {
+        const data = doc.data();
+        // Garantir que takenBy seja sempre um array
+        return {
+          id: doc.id,
+          ...data,
+          takenBy: Array.isArray(data.takenBy) ? data.takenBy : []
+        };
+      });
+
       setGifts(prevGifts => {
         snapshot.docChanges().forEach((change) => {
           if (change.type === 'modified') {
             const oldData = prevGifts.find(g => g.id === change.doc.id);
             const newData = change.doc.data();
-            if (oldData && newData.takenBy && (!oldData.takenBy || oldData.takenBy.length < newData.takenBy.length)) {
-              const newUser = newData.takenBy[newData.takenBy.length - 1];
-              if (newUser !== user.displayName) {
+            const oldTakenBy = Array.isArray(oldData?.takenBy) ? oldData.takenBy : [];
+            const newTakenBy = Array.isArray(newData.takenBy) ? newData.takenBy : [];
+
+            if (oldTakenBy.length < newTakenBy.length) {
+              const newUser = newTakenBy[newTakenBy.length - 1];
+              if (newUser && newUser !== user.displayName) {
                 showToast(`Oba! "${newData.name}" foi escolhido por ${newUser}!`);
               }
             }
@@ -87,12 +99,53 @@ function HomePage({ user }) {
     try {
       setLoading(true);
       const status = await getUserById(user.uid);
+      console.log('DEBUG - Dados do usuário retornados:', status);
+
       if (!status || status.status !== 'approved') {
         navigate('/pending');
         return;
       }
-      setSelectedGifts(status.selectedGifts || []);
+
+      // MIGRAÇÃO: Converter selectedGift (singular) para selectedGifts (plural)
+      let userSelectedGifts = [];
+
+      if (Array.isArray(status.selectedGifts)) {
+        // Já tem selectedGifts (plural) como array
+        userSelectedGifts = status.selectedGifts;
+        console.log('DEBUG - selectedGifts já existe:', userSelectedGifts);
+      } else if (status.selectedGift) {
+        // Tem selectedGift (singular) - precisa migrar
+        console.log('DEBUG - Migrando de selectedGift (singular) para selectedGifts (plural)');
+        userSelectedGifts = status.selectedGift ? [status.selectedGift] : [];
+
+        // Atualizar no Firestore para o novo formato
+        try {
+          const userRef = doc(db, 'users', user.uid);
+          await updateDoc(userRef, {
+            selectedGifts: userSelectedGifts,
+            selectedGift: null  // Remover campo antigo
+          });
+          console.log('DEBUG - Migração concluída!');
+        } catch (migrationErr) {
+          console.error('DEBUG - Erro na migração:', migrationErr);
+        }
+      } else {
+        // Não tem nem selectedGifts nem selectedGift - criar campo novo
+        console.log('DEBUG - Criando selectedGifts pela primeira vez');
+        try {
+          const userRef = doc(db, 'users', user.uid);
+          await updateDoc(userRef, {
+            selectedGifts: []
+          });
+        } catch (createErr) {
+          console.error('DEBUG - Erro ao criar selectedGifts:', createErr);
+        }
+      }
+
+      console.log('DEBUG - selectedGifts final:', userSelectedGifts);
+      setSelectedGifts(userSelectedGifts);
     } catch (err) {
+      console.error('DEBUG - Erro ao carregar status:', err);
       setError('Erro ao carregar seus dados.');
     } finally {
       setLoading(false);
@@ -100,30 +153,70 @@ function HomePage({ user }) {
   };
 
   const handleSelectGift = async (giftId) => {
+    console.log('DEBUG - Iniciando seleção de presente:', giftId);
+    console.log('DEBUG - User UID:', user?.uid);
+    console.log('DEBUG - User displayName:', user?.displayName);
+
+    if (!giftId || !user?.uid || !user?.displayName) {
+      showToast('Erro ao selecionar presente. Tente novamente.');
+      return;
+    }
+
+    // Verificar se já está selecionado
+    if (selectedGifts.includes(giftId)) {
+      showToast('Você já escolheu este presente!');
+      return;
+    }
+
     try {
       const giftRef = doc(db, 'gifts', giftId);
       const userRef = doc(db, 'users', user.uid);
 
+      console.log('DEBUG - Atualizando gift no Firestore...');
+      // Atualizar no Firestore
       await updateDoc(giftRef, {
         takenBy: arrayUnion(user.displayName)
       });
+
+      console.log('DEBUG - Atualizando user no Firestore...');
       await updateDoc(userRef, {
         selectedGifts: arrayUnion(giftId)
       });
 
-      setSelectedGifts(prev => [...prev, giftId]);
+      console.log('DEBUG - Atualizações no Firestore concluídas!');
+
+      // Atualizar estado local
+      setSelectedGifts(prev => {
+        const newList = !prev.includes(giftId) ? [...prev, giftId] : prev;
+        console.log('DEBUG - Novo estado selectedGifts:', newList);
+        return newList;
+      });
       showToast('Oba! Presente escolhido! 💚');
     } catch (err) {
-      showToast('Ops, algo deu errado. Tente de novo.', 'error');
+      console.error('DEBUG - Erro ao selecionar presente:', err);
+      showToast('Ops, algo deu errado. Tente de novo.');
     }
   };
 
   const handleUnselectGift = async (giftId) => {
-    if (!giftId || !window.confirm('Poxa, quer mesmo mudar de ideia?')) return;
+    if (!giftId || !user?.uid || !user?.displayName) {
+      showToast('Erro ao desselecionar presente. Tente novamente.');
+      return;
+    }
+
+    if (!window.confirm('Ops! Quer mesmo tirar este presente da sua lista?')) return;
+
+    // Verificar se realmente está selecionado
+    if (!selectedGifts.includes(giftId)) {
+      showToast('Este presente não está na sua lista.');
+      return;
+    }
+
     try {
       const giftRef = doc(db, 'gifts', giftId);
       const userRef = doc(db, 'users', user.uid);
 
+      // Atualizar no Firestore
       await updateDoc(giftRef, {
         takenBy: arrayRemove(user.displayName)
       });
@@ -131,10 +224,12 @@ function HomePage({ user }) {
         selectedGifts: arrayRemove(giftId)
       });
 
+      // Atualizar estado local
       setSelectedGifts(prev => prev.filter(id => id !== giftId));
       showToast('Tudo bem, você pode escolher outro item!');
     } catch (err) {
-      showToast('Eita, não conseguimos alterar. Tente de novo.', 'error');
+      console.error('Erro ao desselecionar presente:', err);
+      showToast('Eita, não conseguimos alterar. Tente de novo.');
     }
   };
 
@@ -169,6 +264,12 @@ function HomePage({ user }) {
   const isAdmin = (import.meta.env.VITE_ADMIN_EMAILS || '').includes(user.email);
   const mySelectedGifts = gifts.filter(g => selectedGifts.includes(g.id));
   const availableGifts = gifts.filter(g => !selectedGifts.includes(g.id));
+
+  // Debug logs
+  console.log('DEBUG - Total de presentes:', gifts.length);
+  console.log('DEBUG - IDs selecionados pelo usuário:', selectedGifts);
+  console.log('DEBUG - Meus presentes escolhidos:', mySelectedGifts.length);
+  console.log('DEBUG - Presentes disponíveis:', availableGifts.length);
 
   return (
     <div className="bg-secondary min-h-screen font-sans text-accent relative">

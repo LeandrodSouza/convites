@@ -17,7 +17,9 @@ function GiftCard({ gift, onSelect, onUnselect, isSelected }) {
     setIsModalOpen(false);
   };
 
-  const takenByCount = gift.takenBy ? gift.takenBy.length : 0;
+  // Garantir que takenBy seja sempre tratado como array
+  const takenByArray = Array.isArray(gift.takenBy) ? gift.takenBy : [];
+  const takenByCount = takenByArray.length;
   const isTaken = takenByCount > 0;
 
   return (
@@ -69,14 +71,14 @@ function GiftCard({ gift, onSelect, onUnselect, isSelected }) {
               onClick={() => onUnselect(gift.id)}
               className="px-3 py-2 text-sm font-semibold text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition"
             >
-              Mudar ideia
+              Ops, Mudei de ideia 😅
             </button>
           ) : (
             <button
               onClick={() => onSelect(gift.id)}
               className="px-3 py-2 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-primary-hover transition"
             >
-              Eu quero!
+              Esse eu levo! 🎁
             </button>
           )}
         </div>
