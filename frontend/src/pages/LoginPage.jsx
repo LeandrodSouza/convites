@@ -1,110 +1,91 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { useNavigate } from 'react-router-dom';
+import { signInWithPopup, getRedirectResult, signInWithRedirect } from 'firebase/auth';
 import { auth, googleProvider } from '../services/firebase';
 import { api } from '../services/api';
 import { getUserById } from '../services/userService';
 
 function LoginPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Processa autenticação do usuário
   const processAuth = async (user) => {
+    setLoading(true);
     try {
       const adminEmails = (import.meta.env.VITE_ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
       const isAdmin = user.email && adminEmails.includes(user.email.toLowerCase());
 
-      // Admin vai direto para painel
       if (isAdmin) {
         navigate('/admin');
         return;
       }
 
-      // Usuário comum: registra e verifica status
       const token = await user.getIdToken();
       await api.createOrUpdateUser(token, user.email, user.displayName, user.photoURL);
-
-      // Verifica status do usuário
       const userStatus = await getUserById(user.uid);
 
       if (userStatus?.status === 'approved') {
         navigate('/home');
       } else if (userStatus?.status === 'rejected') {
-        setError('Seu acesso foi negado pelos administradores.');
+        setError('Seu acesso foi negado. Fale com os administradores.');
         await auth.signOut();
       } else {
-        // pending ou não existe ainda
         navigate('/pending');
       }
     } catch (err) {
       console.error('Erro ao processar autenticação:', err);
       setError('Erro ao processar login. Tente novamente.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Verifica se já está logado ou processa redirect
   useEffect(() => {
-    let mounted = true;
-
-    const handleAuth = async () => {
-      try {
-        // Primeiro verifica resultado do redirect
-        const result = await getRedirectResult(auth);
-
-        if (!mounted) return;
-
-        if (result?.user) {
-          await processAuth(result.user);
-        }
-      } catch (err) {
-        console.error('Erro ao processar redirect:', err);
-        setError('Erro ao fazer login. Tente novamente.');
-      }
-    };
-
-    // Também escuta mudanças de autenticação
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      if (!mounted) return;
-
+    const unsubscribe = auth.onAuthStateChanged(user => {
       if (user) {
-        await processAuth(user);
+        processAuth(user);
       }
     });
 
-    handleAuth();
+    (async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result && result.user) {
+          await processAuth(result.user);
+        }
+      } catch (error) {
+        console.error("Redirect Error:", error);
+        setError("Falha ao autenticar. Tente novamente.");
+      }
+    })();
 
-    return () => {
-      mounted = false;
-      unsubscribe();
-    };
+    return () => unsubscribe();
   }, [navigate]);
 
   const handleGoogleSignIn = async () => {
+    setLoading(true);
+    setError('');
     try {
-      setLoading(true);
-      setError('');
-
-      // Tenta popup primeiro (melhor para localhost)
-      try {
-        const result = await signInWithPopup(auth, googleProvider);
-        await processAuth(result.user);
-      } catch (popupErr) {
-        // Se popup falhar, tenta redirect
-        console.log('Popup failed, trying redirect:', popupErr);
-        await signInWithRedirect(auth, googleProvider);
-      }
+      await signInWithPopup(auth, googleProvider);
     } catch (err) {
-      setError('Erro ao fazer login. Tente novamente.');
-      console.error(err);
+      if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+        // User closed the popup, do nothing.
+      } else {
+        try {
+          await signInWithRedirect(auth, googleProvider);
+        } catch (redirectErr) {
+          setError('Falha ao fazer login. Tente novamente.');
+          console.error(redirectErr);
+        }
+      }
+    } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-[100svh] flex items-center justify-center bg-secondary px-4 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-secondary px-4 relative overflow-hidden">
       {/* Background Image */}
       <div
         className="absolute inset-0 bg-center bg-no-repeat bg-contain opacity-20"
@@ -114,9 +95,12 @@ function LoginPage() {
       {/* Login Card */}
       <div className="bg-white/85 backdrop-blur-md p-8 md:p-12 rounded-card border border-border shadow-subtle max-w-md w-full text-center relative z-10">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-primary mb-2">💚</h1>
-          <h2 className="text-3xl font-bold text-accent mb-4 tracking-tight">Brunch de Casa Nova</h2>
-          <p className="text-gray-600">Faça login para continuar</p>
+          <h1 className="font-meow text-primary leading-tight">
+            <span className="text-6xl">Nosso Brunch</span>
+            <br />
+            <span className="text-5xl">de casa nova💚</span>
+          </h1>
+          <p className="text-gray-600 mt-4">Faça login para continuar</p>
         </div>
 
         {error && (

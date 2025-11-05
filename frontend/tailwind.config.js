@@ -6,6 +6,9 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        'meow': ['"Meow Script"', 'cursive'],
+      },
       colors: {
         primary: '#2E7D62', // Verde script - CTA primário
         'primary-hover': '#256B54', // Verde hover
