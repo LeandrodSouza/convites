@@ -61,7 +61,7 @@ function HomePage({ user }) {
             if (oldTakenBy.length < newTakenBy.length) {
               const newUser = newTakenBy[newTakenBy.length - 1];
               if (newUser && newUser !== user.displayName) {
-                showToast(`Oba! "${newData.name}" foi escolhido por ${newUser}!`);
+                showToast(`Oba! "${newData.name}" acabou de ser escolhido !`);
               }
             }
           }
