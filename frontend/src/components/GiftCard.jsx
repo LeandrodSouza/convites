@@ -1,74 +1,107 @@
+import { useState } from 'react';
+
 function GiftCard({ gift, onSelect, onUnselect, disabled, isSelected }) {
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+  const handleImageClick = (e) => {
+    e.stopPropagation(); // Prevent card click logic from interfering
+    if (gift.imagePath) {
+      setIsModalOpen(true);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+  };
+
   return (
-    <div className={`bg-white border border-border rounded-card p-4 transition-all duration-300 shadow-subtle ${
-      isSelected
-        ? 'ring-2 ring-primary'
-        : gift.taken
-        ? 'opacity-60'
-        : 'hover:shadow-lg hover:-translate-y-0.5'
-    }`}>
-      {gift.imagePath && (
-        <div className="w-full aspect-square bg-secondary rounded-xl mb-3 overflow-hidden">
-          <img
-            src={`${API_URL}/uploads/${gift.imagePath}`}
-            alt={gift.name}
-            className="w-full h-full object-cover"
-            loading="lazy"
-          />
-        </div>
-      )}
-
-      <h3 className="text-base font-medium text-accent mb-2 line-clamp-2 tracking-tight">{gift.name}</h3>
-
-      {gift.link && (
-        <a
-          href={gift.link}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary-hover hover:underline mb-3 transition-colors"
-        >
-          <span>Link da sugestão</span>
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-          </svg>
-        </a>
-      )}
-
-      {isSelected ? (
-        <div className="space-y-2">
-          <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-[#2E7D62] bg-[#E7F3EE] px-3 py-2 rounded-full border border-[#2E7D62]/20">
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-            </svg>
-            <span>Presente reservado por você</span>
-          </div>
-          <button
-            onClick={() => onUnselect(gift.id)}
-            className="w-full min-h-[44px] bg-white border border-border text-accent font-medium py-2.5 px-4 rounded-xl transition-all hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+    <>
+      <div className={`
+        flex items-center gap-4 p-4 rounded-xl border transition-all duration-300
+        ${isSelected ? 'bg-brand-light border-primary' : 'bg-white border-border'}
+        ${gift.taken && !isSelected ? 'opacity-60' : ''}
+      `}>
+        {/* Clickable Round Image */}
+        {gift.imagePath && (
+          <div
+            className="flex-shrink-0 w-16 h-16 rounded-full bg-secondary overflow-hidden cursor-pointer"
+            onClick={handleImageClick}
           >
-            Alterar escolha
-          </button>
+            <img
+              src={`${API_URL}/uploads/${gift.imagePath}`}
+              alt={gift.name}
+              className="w-full h-full object-cover"
+              loading="lazy"
+            />
+          </div>
+        )}
+
+        {/* Gift Info and Actions */}
+        <div className="flex-grow">
+          <h3 className="font-semibold text-accent leading-tight">{gift.name}</h3>
+
+          {gift.link && (
+            <a
+              href={gift.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-primary hover:underline mt-1 inline-block"
+              onClick={(e) => e.stopPropagation()} // Prevent card click logic
+            >
+              Ver sugestão
+            </a>
+          )}
         </div>
-      ) : gift.taken ? (
-        <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-gray-600 bg-[#F4F0E6] px-3 py-2 rounded-full border border-[#D9D4C7]">
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-          </svg>
-          <span>Já reservado</span>
+
+        {/* Action Button Area */}
+        <div className="flex-shrink-0">
+          {isSelected ? (
+            <button
+              onClick={() => onUnselect(gift.id)}
+              className="px-3 py-2 text-sm font-semibold text-primary border border-primary rounded-lg hover:bg-primary/10 transition"
+            >
+              Mudar
+            </button>
+          ) : gift.taken ? (
+            <span className="px-3 py-2 text-sm font-semibold text-gray-500">Escolhido</span>
+          ) : (
+            <button
+              onClick={() => onSelect(gift.id)}
+              disabled={disabled}
+              className="px-3 py-2 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-primary-hover disabled:opacity-50 transition"
+            >
+              Escolher
+            </button>
+          )}
         </div>
-      ) : (
-        <button
-          onClick={() => onSelect(gift.id)}
-          disabled={disabled}
-          className="w-full min-h-[44px] bg-primary hover:bg-primary-hover text-white font-medium py-3 px-4 rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-          aria-label={`Presentear com ${gift.name}`}
+      </div>
+
+      {/* Image Modal */}
+      {isModalOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4"
+          onClick={handleCloseModal}
         >
-          Presentear
-        </button>
+          <div className="relative max-w-lg max-h-full" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={`${API_URL}/uploads/${gift.imagePath}`}
+              alt={gift.name}
+              className="rounded-lg object-contain max-h-[80vh]"
+            />
+            <button
+              onClick={handleCloseModal}
+              className="absolute -top-2 -right-2 bg-white rounded-full p-1.5 text-gray-800 hover:bg-gray-200 transition"
+              aria-label="Fechar imagem"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
       )}
-    </div>
+    </>
   );
 }
 
