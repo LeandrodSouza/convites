@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { API_URL } from '../services/api';
 
-function GiftCard({ gift, onSelect, onUnselect, isSelected }) {
+function GiftCard({ gift, onSelect, onUnselect, isSelected, currentUser }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const imageUrl = `${API_URL}/uploads/${gift.imagePath}`;
@@ -21,6 +21,7 @@ function GiftCard({ gift, onSelect, onUnselect, isSelected }) {
   const takenByArray = Array.isArray(gift.takenBy) ? gift.takenBy : [];
   const takenByCount = takenByArray.length;
   const isTaken = takenByCount > 0;
+  const isTakenByCurrentUser = currentUser && takenByArray.includes(currentUser.displayName);
 
   return (
     <>
@@ -49,7 +50,11 @@ function GiftCard({ gift, onSelect, onUnselect, isSelected }) {
 
           {isTaken && (
             <p className="text-xs text-gray-500 mt-1">
-      {takenByCount} pessoa{takenByCount > 1 ? 's' : ''} já {takenByCount > 1 ? 'escolheram' : 'escolheu'}.      </p>
+              {isTakenByCurrentUser
+                ? `Anotado! ✍️ Já estamos ansiosos pelo seu presente! ✨ Brigadão! 💚`
+                : `${takenByCount} pessoa${takenByCount > 1 ? 's' : ''} já ${takenByCount > 1 ? 'escolheram' : 'escolheu'}.`
+              }
+            </p>
           )}
 
             {gift.link && (

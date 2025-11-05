@@ -253,7 +253,7 @@ function HomePage({ user }) {
 
   const isAdmin = (import.meta.env.VITE_ADMIN_EMAILS || '').includes(user.email);
   const mySelectedGifts = gifts.filter(g => selectedGifts.includes(g.id));
-  const availableGifts = gifts.filter(g => !selectedGifts.includes(g.id));
+  const availableGifts = gifts.filter(g => !selectedGifts.includes(g.id) && (!g.takenBy || g.takenBy.length === 0));
 
   return (
     <div className="bg-secondary min-h-screen font-sans text-accent relative">
@@ -314,6 +314,7 @@ function HomePage({ user }) {
                     key={gift.id}
                     gift={gift}
                     isSelected={true}
+                    currentUser={user}
                     onUnselect={() => handleUnselectGift(gift.id)}
                   />
                 ))}
@@ -329,6 +330,7 @@ function HomePage({ user }) {
                 key={gift.id}
                 gift={gift}
                 isSelected={false}
+                currentUser={user}
                 onSelect={() => handleSelectGift(gift.id)}
               />
             ))}
