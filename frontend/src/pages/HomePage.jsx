@@ -7,28 +7,22 @@ import { getUserById } from '../services/userService';
 import { getEventSettings } from '../services/eventSettingsService';
 import GiftCard from '../components/GiftCard';
 import Toast from '../components/Toast';
-import Chip from '../components/Chip';
-import Story from '../components/Story';
 import { WazeLogo, UberLogo, GoogleMapsLogo } from '../components/AppLogos';
 
 function HomePage({ user }) {
   const navigate = useNavigate();
-
-  const [userStatus, setUserStatus] = useState(null);
   const [gifts, setGifts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedGift, setSelectedGift] = useState(null);
   const [toasts, setToasts] = useState([]);
   const [eventAddress, setEventAddress] = useState('');
-  const [eventLatitude, setEventLatitude] = useState(null);
-  const [eventLongitude, setEventLongitude] = useState(null);
   const [eventDate, setEventDate] = useState('');
   const [eventTime, setEventTime] = useState('');
 
-  // Refs for scrolling to sections
   const listaRef = useRef(null);
   const localRef = useRef(null);
+  const homeRef = useRef(null);
 
   useEffect(() => {
     if (!user) {
@@ -36,30 +30,17 @@ function HomePage({ user }) {
       return;
     }
 
-    // Verificar se usuário está aprovado
     loadUserStatus();
-
-    // Carregar configuracoes do evento
     loadEventSettings();
 
-    // Subscribe to gifts in real-time
     const giftsQuery = query(collection(db, 'gifts'));
     const unsubscribe = onSnapshot(giftsQuery, (snapshot) => {
-      const giftsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      const giftsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-      console.log('Presentes carregados:', giftsData);
-
-      // Detectar presentes que foram escolhidos por outros usuarios
       snapshot.docChanges().forEach((change) => {
         if (change.type === 'modified') {
           const oldData = gifts.find(g => g.id === change.doc.id);
           const newData = change.doc.data();
-
-          // Se um presente mudou de disponivel para taken
-          // E nao foi o proprio usuario que escolheu
           if (oldData && !oldData.taken && newData.taken && selectedGift !== change.doc.id) {
             showToast(`Presente "${newData.name}" foi escolhido!`);
           }
@@ -72,7 +53,7 @@ function HomePage({ user }) {
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, navigate, gifts, selectedGift]);
 
   const showToast = (message) => {
     const id = Date.now();
@@ -86,13 +67,11 @@ function HomePage({ user }) {
   const loadEventSettings = async () => {
     try {
       const settings = await getEventSettings();
-      setEventAddress(settings.address || '');
-      setEventLatitude(settings.latitude);
-      setEventLongitude(settings.longitude);
+      setEventAddress(settings.address || 'Endereço em breve');
       setEventDate(settings.eventDate || '');
       setEventTime(settings.eventTime || '');
     } catch (err) {
-      console.error('Erro ao carregar configuracoes do evento:', err);
+      console.error('Erro ao carregar configurações:', err);
     }
   };
 
@@ -100,20 +79,13 @@ function HomePage({ user }) {
     try {
       setLoading(true);
       const status = await getUserById(user.uid);
-
-      console.log('Status do usuario:', status);
-
       if (!status || status.status !== 'approved') {
         navigate('/pending');
         return;
       }
-
-      setUserStatus(status);
       setSelectedGift(status.selectedGift || null);
-      console.log('selectedGift setado:', status.selectedGift);
     } catch (err) {
-      setError('Erro ao carregar dados');
-      console.error(err);
+      setError('Erro ao carregar seus dados.');
     } finally {
       setLoading(false);
     }
@@ -123,51 +95,26 @@ function HomePage({ user }) {
     try {
       const giftRef = doc(db, 'gifts', giftId);
       const userRef = doc(db, 'users', user.uid);
-
-      // Atualizar presente como selecionado
-      await updateDoc(giftRef, {
-        taken: true,
-        takenBy: user.displayName || user.email
-      });
-
-      // Atualizar usuário com presente selecionado
-      await updateDoc(userRef, {
-        selectedGift: giftId
-      });
-
+      await updateDoc(giftRef, { taken: true, takenBy: user.displayName });
+      await updateDoc(userRef, { selectedGift: giftId });
       setSelectedGift(giftId);
-      alert('Tudo certo! Presente reservado com sucesso 💚');
+      showToast('Presente reservado com sucesso! 💚');
     } catch (err) {
-      alert('Erro ao reservar presente. Tente novamente.');
-      console.error(err);
+      showToast('Erro ao reservar. Tente novamente.', 'error');
     }
   };
 
   const handleUnselectGift = async (giftId) => {
-    if (!giftId) return;
-
-    if (!confirm('Deseja alterar sua escolha de presente?')) return;
-
+    if (!giftId || !window.confirm('Deseja mesmo alterar sua escolha?')) return;
     try {
       const giftRef = doc(db, 'gifts', giftId);
       const userRef = doc(db, 'users', user.uid);
-
-      // Marcar presente como disponível novamente
-      await updateDoc(giftRef, {
-        taken: false,
-        takenBy: null
-      });
-
-      // Remover presente selecionado do usuário
-      await updateDoc(userRef, {
-        selectedGift: null
-      });
-
+      await updateDoc(giftRef, { taken: false, takenBy: null });
+      await updateDoc(userRef, { selectedGift: null });
       setSelectedGift(null);
-      alert('Escolha alterada! Você pode escolher outro presente agora.');
+      showToast('Escolha alterada. Agora você pode selecionar outro presente.');
     } catch (err) {
-      alert('Erro ao alterar escolha. Tente novamente.');
-      console.error(err);
+      showToast('Erro ao alterar. Tente novamente.', 'error');
     }
   };
 
@@ -176,295 +123,104 @@ function HomePage({ user }) {
     navigate('/login');
   };
 
-  const handleAdminAccess = () => {
-    const adminEmails = import.meta.env.VITE_ADMIN_EMAILS?.split(',') || [];
-    if (adminEmails.includes(user.email)) {
-      navigate('/admin');
-    }
-  };
+  const handleAdminAccess = () => navigate('/admin');
 
-  const scrollToSection = (ref) => {
-    if (ref.current) {
-      ref.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
+  const scrollToSection = (ref) => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   const formatEventDateTime = () => {
-    if (!eventDate && !eventTime) {
-      return '06 dez · 16:30'; // fallback default
+    if (!eventDate || !eventTime) return '06 de Dezembro, às 16:30';
+    try {
+      const date = new Date(`${eventDate}T${eventTime}`);
+      return new Intl.DateTimeFormat('pt-BR', {
+        day: '2-digit',
+        month: 'long',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      }).format(date);
+    } catch {
+      return 'Data em breve';
     }
-
-    let formatted = '';
-
-    if (eventDate) {
-      const date = new Date(eventDate + 'T00:00:00');
-      const day = date.getDate();
-      const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-      const month = months[date.getMonth()];
-      formatted = `${day} ${month}`;
-    }
-
-    if (eventTime) {
-      formatted += formatted ? ` · ${eventTime}` : eventTime;
-    }
-
-    return formatted || '06 dez · 16:30';
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-100 to-purple-100">
-        <div className="text-2xl text-primary">Carregando...</div>
-      </div>
-    );
-  }
+  if (loading) return <div className="h-screen flex items-center justify-center bg-gray-50"><p>Carregando...</p></div>;
+  if (error) return <div className="h-screen flex items-center justify-center bg-red-50"><p>{error}</p></div>;
 
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-100 to-purple-100">
-        <div className="bg-white p-8 rounded-lg shadow-lg text-center">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">Erro</h1>
-          <p className="text-gray-700">{error}</p>
-        </div>
-      </div>
-    );
-  }
-
-  const adminEmails = import.meta.env.VITE_ADMIN_EMAILS?.split(',') || [];
-  const isAdmin = adminEmails.includes(user.email);
+  const isAdmin = (import.meta.env.VITE_ADMIN_EMAILS || '').includes(user.email);
+  const myGift = gifts.find(g => g.taken && g.takenBy === user.displayName);
 
   return (
-    <div className="min-h-[100svh] bg-secondary relative">
-      {/* Background Image */}
-      <div
-        className="fixed inset-0 bg-center bg-no-repeat bg-contain opacity-10 pointer-events-none"
-        style={{ backgroundImage: 'url(/nossobrunch.png)' }}
-      />
+    <div className="bg-gray-50 min-h-screen font-sans text-gray-800">
+      <header ref={homeRef} className="bg-white shadow-sm sticky top-0 z-20 p-4 flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <img src={user.photoURL} alt={user.displayName} className="w-10 h-10 rounded-full" />
+          <div>
+            <p className="text-sm">Olá, <span className="font-semibold">{user.displayName}</span>!</p>
+            <p className="text-xs text-gray-500">Seja bem-vindo(a)!</p>
+          </div>
+        </div>
+        <div>
+          {isAdmin && (
+            <button onClick={handleAdminAccess} className="p-2 rounded-full hover:bg-gray-100" aria-label="Admin">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            </button>
+          )}
+          <button onClick={handleLogout} className="p-2 rounded-full hover:bg-gray-100" aria-label="Sair">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+          </button>
+        </div>
+      </header>
 
-      <div className="mx-auto w-full max-w-screen-sm md:max-w-2xl lg:max-w-4xl pb-[calc(24px+env(safe-area-inset-bottom))] relative z-10">
-        {/* Top Bar */}
-        <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-md border-b border-border mb-6 pt-[env(safe-area-inset-top)]">
-          <div className="px-4 py-3">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
-                {user.photoURL && (
-                  <img
-                    src={user.photoURL}
-                    alt={user.displayName}
-                    className="w-10 h-10 rounded-full border-2 border-primary"
-                  />
-                )}
-                <div>
-                  <p className="text-sm text-primary font-medium">
-                    Olá, {user.displayName || 'Convidado'}! 💚
-                  </p>
-                  <h1 className="text-base font-medium text-accent tracking-tight">
-                    Brunch de Casa Nova
-                  </h1>
-                  <p className="text-xs text-gray-600">Família Andrade Silva convida</p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                {isAdmin && (
-                  <button
-                    onClick={handleAdminAccess}
-                    className="min-w-[44px] min-h-[44px] p-2 hover:bg-secondary rounded-lg transition flex items-center justify-center"
-                    aria-label="Admin"
-                  >
-                    <svg className="w-5 h-5 text-accent" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.108l.737-.527a1.125 1.125 0 011.45.12l.773.774c.39.389.44 1.002.12 1.45l-.527.737c-.25.35-.272.806-.107 1.204.165.397.505.71.93.78l.893.15c.543.09.94.56.94 1.109v1.094c0 .55-.397 1.02-.94 1.11l-.893.149c-.425.07-.765.383-.93.78-.165.398-.143.854.107 1.204l.527.738c.32.447.269 1.06-.12 1.45l-.774.773a1.125 1.125 0 01-1.449.12l-.738-.527c-.35-.25-.806-.272-1.203-.107-.397.165-.71.505-.781.929l-.149.894c-.09.542-.56.94-1.11.94h-1.094c-.55 0-1.019-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93-.398-.164-.854-.142-1.204.108l-.738.527c-.447.32-1.06.269-1.45-.12l-.773-.774a1.125 1.125 0 01-.12-1.45l.527-.737c.25-.35.273-.806.108-1.204-.165-.397-.505-.71-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.765-.383.93-.78.165-.398.143-.854-.107-1.204l-.527-.738a1.125 1.125 0 01.12-1.45l.773-.773a1.125 1.125 0 011.45-.12l.737.527c.35.25.807.272 1.204.107.397-.165.71-.505.78-.929l.15-.894z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                  </button>
-                )}
-                <button
-                  onClick={handleLogout}
-                  className="min-w-[44px] min-h-[44px] p-2 hover:bg-secondary rounded-lg transition flex items-center justify-center"
-                  aria-label="Sair"
-                >
-                  <svg className="w-5 h-5 text-accent" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-              <Chip
-                icon={<svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" /></svg>}
-              >
-                {formatEventDateTime()}
-              </Chip>
-              {eventAddress && (
-                <Chip
-                  icon={<svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" /></svg>}
-                >
-                  {eventAddress}
-                </Chip>
-              )}
-              {userStatus?.status === 'approved' && (
-                <Chip variant="success">
-                  Confirmado
-                </Chip>
-              )}
-            </div>
+      <main className="p-4 pb-24">
+        <div className="text-center mb-12">
+          <h1 className="font-meow text-6xl text-gray-800">Nosso Brunch</h1>
+          <p className="text-lg text-gray-600 mt-2">de casa nova</p>
+        </div>
+
+        <div ref={localRef} className="bg-white rounded-2xl shadow-lg p-6 mb-8 text-center">
+          <h2 className="text-2xl font-bold mb-4">Detalhes do Evento</h2>
+          <p className="text-lg font-semibold text-gray-700">{formatEventDateTime()}</p>
+          <p className="text-gray-600 mt-2">{eventAddress}</p>
+          <div className="grid grid-cols-3 gap-4 mt-6">
+            <a href={`https://waze.com/ul?q=${eventAddress}`} className="flex flex-col items-center gap-2 p-2 rounded-lg hover:bg-gray-100"><WazeLogo /><span className="text-xs">Waze</span></a>
+            <a href={`https://m.uber.com/ul/?action=setPickup&dropoff[formatted_address]=${eventAddress}`} className="flex flex-col items-center gap-2 p-2 rounded-lg hover:bg-gray-100"><UberLogo /><span className="text-xs">Uber</span></a>
+            <a href={`https://google.com/maps/search/?api=1&query=${eventAddress}`} className="flex flex-col items-center gap-2 p-2 rounded-lg hover:bg-gray-100"><GoogleMapsLogo /><span className="text-xs">Maps</span></a>
           </div>
         </div>
 
-        {/* Stories */}
-        <div className="px-4 mb-6">
-          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-            {isAdmin && (
-              <Story
-                icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" /></svg>}
-                label="Convite"
-                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-              />
-            )}
-            <Story
-              icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 11.25v8.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 109.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1114.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" /></svg>}
-              label="Lista"
-              onClick={() => scrollToSection(listaRef)}
-            />
-            <Story
-              icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg>}
-              label="Local"
-              onClick={() => scrollToSection(localRef)}
-            />
-          </div>
-        </div>
-
-        {/* Feed */}
-        <div className="px-4 space-y-4">
-
-        {/* Local Card */}
-        <div ref={localRef} className="bg-white rounded-card border border-border shadow-subtle p-5">
-          <h3 className="text-base font-medium text-accent mb-2 tracking-tight">Local do Brunch</h3>
-          <p className="text-sm text-gray-600 mb-4">
-            {eventAddress || 'Endereco nao configurado'}
-          </p>
-          {eventAddress && (
-            <div className="grid grid-cols-3 gap-2">
-              <a
-                href={`https://www.waze.com/ul?q=${encodeURIComponent(eventAddress)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex flex-col items-center gap-1 p-3 bg-secondary hover:bg-border rounded-xl transition text-center"
-              >
-                <WazeLogo />
-                <span className="text-xs text-accent font-medium">Waze</span>
-              </a>
-              <a
-                href={`https://m.uber.com/ul/?action=setPickup&dropoff[formatted_address]=${encodeURIComponent(eventAddress)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex flex-col items-center gap-1 p-3 bg-secondary hover:bg-border rounded-xl transition text-center"
-              >
-                <UberLogo />
-                <span className="text-xs text-accent font-medium">Uber</span>
-              </a>
-              <a
-                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(eventAddress)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex flex-col items-center gap-1 p-3 bg-secondary hover:bg-border rounded-xl transition text-center"
-              >
-                <GoogleMapsLogo />
-                <span className="text-xs text-accent font-medium">Maps</span>
-              </a>
+        <div ref={listaRef} className="bg-white rounded-2xl shadow-lg p-6">
+          <h2 className="text-2xl font-bold text-center mb-6">Lista de Presentes</h2>
+          {myGift ? (
+            <div>
+              <p className="text-center mb-4">Você escolheu nosso presente! Muito obrigado! 💚</p>
+              <GiftCard gift={myGift} isSelected onUnselect={() => handleUnselectGift(myGift.id)} />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {gifts.filter(g => !g.taken).map(gift => (
+                <GiftCard key={gift.id} gift={gift} onSelect={() => handleSelectGift(gift.id)} />
+              ))}
             </div>
           )}
-          <p className="text-xs text-gray-500 mt-3 text-center">
-            Te espero para celebrar este novo momento.
-          </p>
+          {gifts.every(g => g.taken) && <p className="text-center text-gray-500">Todos os presentes já foram escolhidos! Agradecemos o carinho de todos.</p>}
         </div>
+      </main>
 
-        {/* Sua Escolha */}
-        {(() => {
-          const userName = user.displayName || user.email;
-          const myGifts = gifts.filter(gift => gift.takenBy === userName);
+      <nav className="fixed bottom-0 inset-x-0 bg-white/80 backdrop-blur-lg shadow-t-strong z-20 flex justify-around p-2">
+        {[
+          { ref: homeRef, label: 'Início', icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg> },
+          { ref: localRef, label: 'Local', icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg> },
+          { ref: listaRef, label: 'Presentes', icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"></path></svg> }
+        ].map(({ ref, label, icon }) => (
+          <button key={label} onClick={() => scrollToSection(ref)} className="flex flex-col items-center gap-1 text-gray-600 hover:text-gray-900">
+            {icon}
+            <span className="text-xs">{label}</span>
+          </button>
+        ))}
+      </nav>
 
-          if (myGifts.length > 0) {
-            return (
-              <div className="bg-white rounded-card border border-border shadow-subtle p-5">
-                <h3 className="text-base font-medium text-accent mb-1 tracking-tight">Seu Presente</h3>
-                <p className="text-xs text-gray-500 mb-4">Presente que você reservou para os anfitriões</p>
-                <div className="grid grid-cols-1 gap-4">
-                  {myGifts.map((gift) => (
-                    <GiftCard
-                      key={gift.id}
-                      gift={gift}
-                      onSelect={handleSelectGift}
-                      onUnselect={handleUnselectGift}
-                      isSelected={true}
-                      disabled={false}
-                    />
-                  ))}
-                </div>
-              </div>
-            );
-          }
-          return null;
-        })()}
-
-        {/* Lista de Presentes */}
-        <div ref={listaRef} className="bg-white rounded-card border border-border shadow-subtle p-5">
-          <h3 className="text-base font-medium text-accent mb-4 tracking-tight">Escolha um presente para nos ajudar a montar nosso lar 💚</h3>
-          {(() => {
-            const userName = user.displayName || user.email;
-            const hasSelectedGift = gifts.some(g => g.takenBy === userName);
-
-            if (hasSelectedGift) {
-              return (
-                <div className="bg-brand-light border border-primary/20 p-3 rounded-xl mb-4">
-                  <p className="text-sm text-primary">
-                    Você já reservou um presente. Para escolher outro, altere sua escolha primeiro.
-                  </p>
-                </div>
-              );
-            }
-            return null;
-          })()}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {(() => {
-              const userName = user.displayName || user.email;
-              const hasSelectedGift = gifts.some(g => g.takenBy === userName);
-              const availableGifts = gifts.filter(gift => !gift.taken);
-              console.log('Presentes disponiveis:', availableGifts);
-              return availableGifts.map((gift) => (
-                <GiftCard
-                  key={gift.id}
-                  gift={gift}
-                  onSelect={handleSelectGift}
-                  onUnselect={handleUnselectGift}
-                  isSelected={false}
-                  disabled={hasSelectedGift}
-                />
-              ));
-            })()}
-          </div>
-          {gifts.length === 0 && (
-            <div className="text-center py-8">
-              <p className="text-sm text-gray-500">Ainda não temos presentes aqui</p>
-            </div>
-          )}
-          {gifts.length > 0 && gifts.filter(gift => !gift.taken).length === 0 && (
-            <div className="text-center py-8">
-              <p className="text-sm text-gray-500">Todos os presentes já foram escolhidos</p>
-            </div>
-          )}
-        </div>
-
-        </div>
-      </div>
-
-      {/* Toast notifications */}
       {toasts.map(toast => (
-        <Toast
-          key={toast.id}
-          message={toast.message}
-          type="info"
-          onClose={() => removeToast(toast.id)}
-        />
+        <Toast key={toast.id} message={toast.message} onClose={() => removeToast(toast.id)} />
       ))}
     </div>
   );
