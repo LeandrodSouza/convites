@@ -1,4 +1,5 @@
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+// Export the base API URL to be used in other parts of the application, like for image paths.
+export const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 export const api = {
   // Invite endpoints

@@ -1,11 +1,14 @@
 import { useState } from 'react';
+import { API_URL } from '../services/api'; // Import the centralized API_URL
 
 function GiftCard({ gift, onSelect, onUnselect, disabled, isSelected }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+  // Use the centralized API_URL to construct the image path
+  const imageUrl = `${API_URL}/uploads/${gift.imagePath}`;
 
   const handleImageClick = (e) => {
-    e.stopPropagation(); // Prevent card click logic from interfering
+    e.stopPropagation();
     if (gift.imagePath) {
       setIsModalOpen(true);
     }
@@ -29,7 +32,7 @@ function GiftCard({ gift, onSelect, onUnselect, disabled, isSelected }) {
             onClick={handleImageClick}
           >
             <img
-              src={`${API_URL}/uploads/${gift.imagePath}`}
+              src={imageUrl}
               alt={gift.name}
               className="w-full h-full object-cover"
               loading="lazy"
@@ -47,7 +50,7 @@ function GiftCard({ gift, onSelect, onUnselect, disabled, isSelected }) {
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm text-primary hover:underline mt-1 inline-block"
-              onClick={(e) => e.stopPropagation()} // Prevent card click logic
+              onClick={(e) => e.stopPropagation()}
             >
               Ver sugestão
             </a>
@@ -85,7 +88,7 @@ function GiftCard({ gift, onSelect, onUnselect, disabled, isSelected }) {
         >
           <div className="relative max-w-lg max-h-full" onClick={(e) => e.stopPropagation()}>
             <img
-              src={`${API_URL}/uploads/${gift.imagePath}`}
+              src={imageUrl}
               alt={gift.name}
               className="rounded-lg object-contain max-h-[80vh]"
             />
