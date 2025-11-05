@@ -403,16 +403,16 @@ function AdminPage({ user }) {
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm">
-                        {gift.taken ? (
+                        {gift.takenBy && gift.takenBy.length > 0 ? (
                           <span className="text-primary font-medium">Escolhido</span>
                         ) : (
                           <span className="text-gray-400">Disponivel</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm">{gift.takenBy || '-'}</td>
+                      <td className="px-4 py-3 text-sm">{gift.takenBy && gift.takenBy.length > 0 ? gift.takenBy.join(', ') : '-'}</td>
                       <td className="px-4 py-3 text-sm">
                         <div className="flex gap-2 justify-center">
-                          {!gift.taken && (
+                          {(!gift.takenBy || gift.takenBy.length === 0) && (
                             <>
                               <button
                                 onClick={() => setEditingGift(gift)}
@@ -428,7 +428,7 @@ function AdminPage({ user }) {
                               </button>
                             </>
                           )}
-                          {gift.taken && (
+                          {gift.takenBy && gift.takenBy.length > 0 && (
                             <span className="text-xs text-gray-400 italic">Escolhido</span>
                           )}
                         </div>
@@ -464,31 +464,31 @@ function AdminPage({ user }) {
 
                   <div className="mb-3">
                     <p className="text-xs text-gray-500 mb-1">Status</p>
-                    {gift.taken ? (
+                    {gift.takenBy && gift.takenBy.length > 0 ? (
                       <span className="text-sm text-primary font-medium">Escolhido</span>
                     ) : (
                       <span className="text-sm text-gray-400">Disponível</span>
                     )}
                   </div>
 
-                  {gift.takenBy && (
+                  {gift.takenBy && gift.takenBy.length > 0 && (
                     <div className="mb-3">
                       <p className="text-xs text-gray-500 mb-1">Escolhido por</p>
-                      <p className="text-sm text-accent">{gift.takenBy}</p>
+                      <p className="text-sm text-accent">{gift.takenBy.join(', ')}</p>
                     </div>
                   )}
 
-                  {!gift.taken && (
-                    <div className="flex gap-2 mt-4">
+                  {(!gift.takenBy || gift.takenBy.length === 0) && (
+                    <div className="flex gap-2 mt-4 justify-center">
                       <button
                         onClick={() => setEditingGift(gift)}
-                        className="flex-1 min-h-[44px] bg-primary hover:bg-primary-hover text-white font-medium py-2 px-3 rounded-lg transition text-sm"
+                        className="flex-1 min-h-[44px] bg-primary hover:bg-primary-hover text-white font-medium py-2 px-3 rounded-lg transition text-sm text-center"
                       >
                         Editar
                       </button>
                       <button
                         onClick={() => handleDeleteGift(gift.id, gift.name)}
-                        className="flex-1 min-h-[44px] bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-3 rounded-lg transition text-sm"
+                        className="flex-1 min-h-[44px] bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-3 rounded-lg transition text-sm text-center"
                       >
                         Deletar
                       </button>
@@ -583,16 +583,16 @@ function AdminPage({ user }) {
                         </div>
                       )}
 
-                      <div className="flex gap-2 mt-4">
+                      <div className="flex gap-2 mt-4 justify-center">
                         <button
                           onClick={() => handleApproveUser(u.userId, u.displayName || u.email)}
-                          className="flex-1 min-h-[44px] bg-primary hover:bg-primary-hover text-white font-medium py-2 px-3 rounded-lg transition text-sm"
+                          className="flex-1 min-h-[44px] bg-primary hover:bg-primary-hover text-white font-medium py-2 px-3 rounded-lg transition text-sm text-center"
                         >
                           Aprovar
                         </button>
                         <button
                           onClick={() => handleRejectUser(u.userId, u.displayName || u.email)}
-                          className="flex-1 min-h-[44px] bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-3 rounded-lg transition text-sm"
+                          className="flex-1 min-h-[44px] bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-3 rounded-lg transition text-sm text-center"
                         >
                           Rejeitar
                         </button>
@@ -622,7 +622,7 @@ function AdminPage({ user }) {
                     </thead>
                     <tbody>
                       {approvedUsers.map((u, idx) => {
-                        const gift = gifts.find(g => g.id === u.selectedGift);
+                        const userGifts = gifts.filter(g => u.selectedGifts?.includes(g.id));
                         return (
                           <tr key={idx} className="border-b border-gray-200">
                             <td className="px-4 py-3 text-sm">
@@ -635,8 +635,8 @@ function AdminPage({ user }) {
                             </td>
                             <td className="px-4 py-3 text-sm">{u.email}</td>
                             <td className="px-4 py-3 text-sm">
-                              {gift ? (
-                                <span className="text-primary font-medium">{gift.name}</span>
+                              {userGifts.length > 0 ? (
+                                <span className="text-primary font-medium">{userGifts.map(g => g.name).join(', ')}</span>
                               ) : (
                                 <span className="text-gray-400">Nenhum</span>
                               )}
@@ -651,7 +651,7 @@ function AdminPage({ user }) {
                 {/* Mobile Cards */}
                 <div className="md:hidden space-y-3">
                   {approvedUsers.map((u, idx) => {
-                    const gift = gifts.find(g => g.id === u.selectedGift);
+                    const userGifts = gifts.filter(g => u.selectedGifts?.includes(g.id));
                     return (
                       <div key={idx} className="border border-green-200 rounded-xl p-4 bg-green-50">
                         <div className="flex items-center gap-3 mb-3">
@@ -665,9 +665,9 @@ function AdminPage({ user }) {
                         </div>
 
                         <div>
-                          <p className="text-xs text-gray-500 mb-1">Presente escolhido</p>
-                          {gift ? (
-                            <p className="text-sm text-primary font-medium">{gift.name}</p>
+                          <p className="text-xs text-gray-500 mb-1">Presentes escolhidos</p>
+                          {userGifts.length > 0 ? (
+                            <p className="text-sm text-primary font-medium">{userGifts.map(g => g.name).join(', ')}</p>
                           ) : (
                             <p className="text-sm text-gray-400">Nenhum</p>
                           )}
