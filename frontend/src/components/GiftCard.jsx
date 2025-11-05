@@ -48,8 +48,7 @@ function GiftCard({ gift, onSelect, onUnselect, isSelected }) {
 
           {isTaken && (
             <p className="text-xs text-gray-500 mt-1">
-              {takenByCount} pessoa{takenByCount > 1 ? 's' : ''} já escolheram.
-            </p>
+      {takenByCount} pessoa{takenByCount > 1 ? 's' : ''} já {takenByCount > 1 ? 'escolheram' : 'escolheu'}.      </p>
           )}
 
           {gift.link && (
