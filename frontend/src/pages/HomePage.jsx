@@ -24,8 +24,6 @@ function HomePage({ user }) {
   const localRef = useRef(null);
   const homeRef = useRef(null);
 
-  // Use a ref to get the latest selectedGift value inside the onSnapshot listener
-  // without adding it to the useEffect dependency array, which would cause a loop.
   const selectedGiftRef = useRef(selectedGift);
   useEffect(() => {
     selectedGiftRef.current = selectedGift;
@@ -43,10 +41,6 @@ function HomePage({ user }) {
     const giftsQuery = query(collection(db, 'gifts'));
     const unsubscribe = onSnapshot(giftsQuery, (snapshot) => {
       const giftsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-      // Use the functional form of setGifts to access the previous state (prevGifts)
-      // This allows us to compare the old and new data for the toast notification
-      // without needing to add `gifts` to the dependency array.
       setGifts(prevGifts => {
         snapshot.docChanges().forEach((change) => {
           if (change.type === 'modified') {
@@ -64,7 +58,6 @@ function HomePage({ user }) {
     });
 
     return () => unsubscribe();
-    // The dependency array is kept minimal to prevent re-subscribing on every state change.
   }, [user, navigate]);
 
   const showToast = (message) => {
@@ -79,7 +72,7 @@ function HomePage({ user }) {
   const loadEventSettings = async () => {
     try {
       const settings = await getEventSettings();
-      setEventAddress(settings.address || 'Endereço em breve');
+      setEventAddress(settings.address || 'Avenida Bernardo Manoel, 10099, planalto Itapery.');
       setEventDate(settings.eventDate || '');
       setEventTime(settings.eventTime || '');
     } catch (err) {
@@ -190,30 +183,33 @@ function HomePage({ user }) {
 
       <main className="p-4 pb-24 relative z-10">
         <div className="text-center mb-12">
-          <h1 className="font-meow text-6xl text-primary">Nosso Brunch</h1>
-          <p className="text-lg text-accent mt-2">de casa nova</p>
+          <h1 className="font-meow text-primary leading-tight">
+            <span className="text-6xl">Nosso Brunch</span>
+            <br />
+            <span className="text-5xl">de casa nova💚</span>
+          </h1>
         </div>
 
         <div ref={localRef} className="bg-white rounded-card border border-border shadow-subtle p-6 mb-8 text-center">
-          <h2 className="text-2xl font-bold text-accent mb-4">Detalhes do Evento</h2>
-          <p className="text-lg font-semibold text-primary">{formatEventDateTime()}</p>
-          <p className="text-gray-600 mt-2">{eventAddress}</p>
+          <h2 className="text-4xl font-meow text-accent mb-4">Detalhes do Evento</h2>
+          <p className="text-xl font-semibold text-primary">{formatEventDateTime()}</p>
+          <p className="text-gray-600 mt-2 text-lg">{eventAddress}</p>
           <div className="grid grid-cols-3 gap-4 mt-6">
-            <a href={`https://waze.com/ul?q=${eventAddress}`} className="flex flex-col items-center gap-2 p-3 bg-secondary hover:bg-border rounded-xl transition"><WazeLogo /><span className="text-xs font-medium text-accent">Waze</span></a>
-            <a href={`https://m.uber.com/ul/?action=setPickup&dropoff[formatted_address]=${eventAddress}`} className="flex flex-col items-center gap-2 p-3 bg-secondary hover:bg-border rounded-xl transition"><UberLogo /><span className="text-xs font-medium text-accent">Uber</span></a>
-            <a href={`https://google.com/maps/search/?api=1&query=${eventAddress}`} className="flex flex-col items-center gap-2 p-3 bg-secondary hover:bg-border rounded-xl transition"><GoogleMapsLogo /><span className="text-xs font-medium text-accent">Maps</span></a>
+            <a href={`https://waze.com/ul?q=${encodeURIComponent(eventAddress)}`} className="flex flex-col items-center gap-2 p-3 bg-secondary hover:bg-border rounded-xl transition"><WazeLogo /><span className="text-xs font-medium text-accent">Waze</span></a>
+            <a href={`https://m.uber.com/ul/?action=setPickup&dropoff[formatted_address]=${encodeURIComponent(eventAddress)}`} className="flex flex-col items-center gap-2 p-3 bg-secondary hover:bg-border rounded-xl transition"><UberLogo /><span className="text-xs font-medium text-accent">Uber</span></a>
+            <a href={`https://google.com/maps/search/?api=1&query=${encodeURIComponent(eventAddress)}`} className="flex flex-col items-center gap-2 p-3 bg-secondary hover:bg-border rounded-xl transition"><GoogleMapsLogo /><span className="text-xs font-medium text-accent">Maps</span></a>
           </div>
         </div>
 
         <div ref={listaRef} className="bg-white rounded-card border border-border shadow-subtle p-6">
-          <h2 className="text-2xl font-bold text-center text-accent mb-6">Lista de Presentes</h2>
+          <h2 className="text-xl font-semibold text-center text-accent mb-6">Escolha um presente para nos ajudar a montar nosso lar 💚</h2>
           {myGift ? (
             <div>
               <p className="text-center mb-4 text-primary">Você escolheu nosso presente! Muito obrigado! 💚</p>
               <GiftCard gift={myGift} isSelected onUnselect={() => handleUnselectGift(myGift.id)} />
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               {gifts.filter(g => !g.taken).map(gift => (
                 <GiftCard key={gift.id} gift={gift} onSelect={() => handleSelectGift(gift.id)} />
               ))}
