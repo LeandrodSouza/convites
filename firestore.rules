@@ -13,11 +13,12 @@ service cloud.firestore {
       // (needed for admin panel to list users)
       allow read: if isAuthenticated();
 
-      // Allow users to update only their own selectedGift field
+      // Allow users to update only their own selectedGift/selectedGifts fields
+      // Supporting both for migration from singular to plural
       allow update: if isAuthenticated()
                     && request.auth.uid == userId
                     && request.resource.data.diff(resource.data).affectedKeys()
-                        .hasOnly(['selectedGift']);
+                        .hasOnly(['selectedGift', 'selectedGifts']);
 
       // All other writes (create, delete) must go through backend API
       allow create, delete: if false;

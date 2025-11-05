@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '../services/firebase';
-import { collection, onSnapshot, query, doc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { getUserById } from '../services/userService';
 import { getEventSettings } from '../services/eventSettingsService';
 import GiftCard from '../components/GiftCard';
@@ -14,7 +14,7 @@ function HomePage({ user }) {
   const [gifts, setGifts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [selectedGift, setSelectedGift] = useState(null);
+  const [selectedGifts, setSelectedGifts] = useState([]);
   const [toasts, setToasts] = useState([]);
   const [eventAddress, setEventAddress] = useState('');
   const [eventDate, setEventDate] = useState('');
@@ -24,9 +24,9 @@ function HomePage({ user }) {
   const localRef = useRef(null);
   const homeRef = useRef(null);
 
-  const selectedGiftRef = useRef(selectedGift);
+  const selectedGiftsRef = useRef(selectedGifts);
   useEffect(() => {
-    selectedGiftRef.current = selectedGift;
+    selectedGiftsRef.current = selectedGifts;
   });
 
   useEffect(() => {
@@ -40,18 +40,33 @@ function HomePage({ user }) {
 
     const giftsQuery = query(collection(db, 'gifts'));
     const unsubscribe = onSnapshot(giftsQuery, (snapshot) => {
-      const giftsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const giftsData = snapshot.docs.map(doc => {
+        const data = doc.data();
+        // Garantir que takenBy seja sempre um array
+        return {
+          id: doc.id,
+          ...data,
+          takenBy: Array.isArray(data.takenBy) ? data.takenBy : []
+        };
+      });
+
       setGifts(prevGifts => {
         snapshot.docChanges().forEach((change) => {
           if (change.type === 'modified') {
             const oldData = prevGifts.find(g => g.id === change.doc.id);
             const newData = change.doc.data();
-            if (oldData && !oldData.taken && newData.taken && selectedGiftRef.current !== change.doc.id) {
-              showToast(`Presente "${newData.name}" foi escolhido!`);
+            const oldTakenBy = Array.isArray(oldData?.takenBy) ? oldData.takenBy : [];
+            const newTakenBy = Array.isArray(newData.takenBy) ? newData.takenBy : [];
+
+            if (oldTakenBy.length < newTakenBy.length) {
+              const newUser = newTakenBy[newTakenBy.length - 1];
+              if (newUser && newUser !== user.displayName) {
+                showToast(`Oba! "${newData.name}" foi escolhido por ${newUser}!`);
+              }
             }
           }
         });
-        return giftsData;
+        return giftsData.sort((a, b) => (a.takenBy?.length || 0) - (b.takenBy?.length || 0));
       });
     }, (error) => {
       console.error('Erro ao carregar presentes:', error);
@@ -84,12 +99,53 @@ function HomePage({ user }) {
     try {
       setLoading(true);
       const status = await getUserById(user.uid);
+      console.log('DEBUG - Dados do usuário retornados:', status);
+
       if (!status || status.status !== 'approved') {
         navigate('/pending');
         return;
       }
-      setSelectedGift(status.selectedGift || null);
+
+      // MIGRAÇÃO: Converter selectedGift (singular) para selectedGifts (plural)
+      let userSelectedGifts = [];
+
+      if (Array.isArray(status.selectedGifts)) {
+        // Já tem selectedGifts (plural) como array
+        userSelectedGifts = status.selectedGifts;
+        console.log('DEBUG - selectedGifts já existe:', userSelectedGifts);
+      } else if (status.selectedGift) {
+        // Tem selectedGift (singular) - precisa migrar
+        console.log('DEBUG - Migrando de selectedGift (singular) para selectedGifts (plural)');
+        userSelectedGifts = status.selectedGift ? [status.selectedGift] : [];
+
+        // Atualizar no Firestore para o novo formato
+        try {
+          const userRef = doc(db, 'users', user.uid);
+          await updateDoc(userRef, {
+            selectedGifts: userSelectedGifts,
+            selectedGift: null  // Remover campo antigo
+          });
+          console.log('DEBUG - Migração concluída!');
+        } catch (migrationErr) {
+          console.error('DEBUG - Erro na migração:', migrationErr);
+        }
+      } else {
+        // Não tem nem selectedGifts nem selectedGift - criar campo novo
+        console.log('DEBUG - Criando selectedGifts pela primeira vez');
+        try {
+          const userRef = doc(db, 'users', user.uid);
+          await updateDoc(userRef, {
+            selectedGifts: []
+          });
+        } catch (createErr) {
+          console.error('DEBUG - Erro ao criar selectedGifts:', createErr);
+        }
+      }
+
+      console.log('DEBUG - selectedGifts final:', userSelectedGifts);
+      setSelectedGifts(userSelectedGifts);
     } catch (err) {
+      console.error('DEBUG - Erro ao carregar status:', err);
       setError('Erro ao carregar seus dados.');
     } finally {
       setLoading(false);
@@ -97,29 +153,83 @@ function HomePage({ user }) {
   };
 
   const handleSelectGift = async (giftId) => {
+    console.log('DEBUG - Iniciando seleção de presente:', giftId);
+    console.log('DEBUG - User UID:', user?.uid);
+    console.log('DEBUG - User displayName:', user?.displayName);
+
+    if (!giftId || !user?.uid || !user?.displayName) {
+      showToast('Erro ao selecionar presente. Tente novamente.');
+      return;
+    }
+
+    // Verificar se já está selecionado
+    if (selectedGifts.includes(giftId)) {
+      showToast('Você já escolheu este presente!');
+      return;
+    }
+
     try {
       const giftRef = doc(db, 'gifts', giftId);
       const userRef = doc(db, 'users', user.uid);
-      await updateDoc(giftRef, { taken: true, takenBy: user.displayName });
-      await updateDoc(userRef, { selectedGift: giftId });
-      setSelectedGift(giftId);
-      showToast('Presente reservado com sucesso! 💚');
+
+      console.log('DEBUG - Atualizando gift no Firestore...');
+      // Atualizar no Firestore
+      await updateDoc(giftRef, {
+        takenBy: arrayUnion(user.displayName)
+      });
+
+      console.log('DEBUG - Atualizando user no Firestore...');
+      await updateDoc(userRef, {
+        selectedGifts: arrayUnion(giftId)
+      });
+
+      console.log('DEBUG - Atualizações no Firestore concluídas!');
+
+      // Atualizar estado local
+      setSelectedGifts(prev => {
+        const newList = !prev.includes(giftId) ? [...prev, giftId] : prev;
+        console.log('DEBUG - Novo estado selectedGifts:', newList);
+        return newList;
+      });
+      showToast('Oba! Presente escolhido! 💚');
     } catch (err) {
-      showToast('Erro ao reservar. Tente novamente.', 'error');
+      console.error('DEBUG - Erro ao selecionar presente:', err);
+      showToast('Ops, algo deu errado. Tente de novo.');
     }
   };
 
   const handleUnselectGift = async (giftId) => {
-    if (!giftId || !window.confirm('Deseja mesmo alterar sua escolha?')) return;
+    if (!giftId || !user?.uid || !user?.displayName) {
+      showToast('Erro ao desselecionar presente. Tente novamente.');
+      return;
+    }
+
+    if (!window.confirm('Ops! Quer mesmo tirar este presente da sua lista?')) return;
+
+    // Verificar se realmente está selecionado
+    if (!selectedGifts.includes(giftId)) {
+      showToast('Este presente não está na sua lista.');
+      return;
+    }
+
     try {
       const giftRef = doc(db, 'gifts', giftId);
       const userRef = doc(db, 'users', user.uid);
-      await updateDoc(giftRef, { taken: false, takenBy: null });
-      await updateDoc(userRef, { selectedGift: null });
-      setSelectedGift(null);
-      showToast('Escolha alterada. Agora você pode selecionar outro presente.');
+
+      // Atualizar no Firestore
+      await updateDoc(giftRef, {
+        takenBy: arrayRemove(user.displayName)
+      });
+      await updateDoc(userRef, {
+        selectedGifts: arrayRemove(giftId)
+      });
+
+      // Atualizar estado local
+      setSelectedGifts(prev => prev.filter(id => id !== giftId));
+      showToast('Tudo bem, você pode escolher outro item!');
     } catch (err) {
-      showToast('Erro ao alterar. Tente novamente.', 'error');
+      console.error('Erro ao desselecionar presente:', err);
+      showToast('Eita, não conseguimos alterar. Tente de novo.');
     }
   };
 
@@ -148,11 +258,18 @@ function HomePage({ user }) {
     }
   };
 
-  if (loading) return <div className="h-screen flex items-center justify-center bg-secondary"><p>Carregando...</p></div>;
+  if (loading) return <div className="h-screen flex items-center justify-center bg-secondary"><p>Carregando as novidades...</p></div>;
   if (error) return <div className="h-screen flex items-center justify-center bg-red-100"><p>{error}</p></div>;
 
   const isAdmin = (import.meta.env.VITE_ADMIN_EMAILS || '').includes(user.email);
-  const myGift = gifts.find(g => g.taken && g.takenBy === user.displayName);
+  const mySelectedGifts = gifts.filter(g => selectedGifts.includes(g.id));
+  const availableGifts = gifts.filter(g => !selectedGifts.includes(g.id));
+
+  // Debug logs
+  console.log('DEBUG - Total de presentes:', gifts.length);
+  console.log('DEBUG - IDs selecionados pelo usuário:', selectedGifts);
+  console.log('DEBUG - Meus presentes escolhidos:', mySelectedGifts.length);
+  console.log('DEBUG - Presentes disponíveis:', availableGifts.length);
 
   return (
     <div className="bg-secondary min-h-screen font-sans text-accent relative">
@@ -165,8 +282,8 @@ function HomePage({ user }) {
         <div className="flex items-center gap-3">
           <img src={user.photoURL} alt={user.displayName} className="w-10 h-10 rounded-full border-2 border-primary" />
           <div>
-            <p className="text-sm">Olá, <span className="font-semibold text-primary">{user.displayName}</span>!</p>
-            <p className="text-xs text-gray-600">Seja bem-vindo(a)!</p>
+            <p className="text-sm">Que bom te ver, <span className="font-semibold text-primary">{user.displayName}</span>!</p>
+            <p className="text-xs text-gray-600">Vem ver as novidades!</p>
           </div>
         </div>
         <div>
@@ -191,7 +308,7 @@ function HomePage({ user }) {
         </div>
 
         <div ref={localRef} className="bg-white rounded-card border border-border shadow-subtle p-6 mb-8 text-center">
-          <h2 className="text-4xl font-meow text-accent mb-4">Detalhes do Evento</h2>
+          <h2 className="text-4xl font-meow text-accent mb-4">Save the Date!</h2>
           <p className="text-xl font-semibold text-primary">{formatEventDateTime()}</p>
           <p className="text-gray-600 mt-2 text-lg">{eventAddress}</p>
           <div className="grid grid-cols-3 gap-4 mt-6">
@@ -202,20 +319,38 @@ function HomePage({ user }) {
         </div>
 
         <div ref={listaRef} className="bg-white rounded-card border border-border shadow-subtle p-6">
-          <h2 className="text-xl font-semibold text-center text-accent mb-6">Escolha um presente para nos ajudar a montar nosso lar 💚</h2>
-          {myGift ? (
-            <div>
-              <p className="text-center mb-4 text-primary">Você escolheu nosso presente! Muito obrigado! 💚</p>
-              <GiftCard gift={myGift} isSelected onUnselect={() => handleUnselectGift(myGift.id)} />
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-4">
-              {gifts.filter(g => !g.taken).map(gift => (
-                <GiftCard key={gift.id} gift={gift} onSelect={() => handleSelectGift(gift.id)} />
-              ))}
+          <h2 className="text-4xl font-meow text-accent mb-4 text-center">Nossa lista de presentes</h2>
+          <p className="text-center text-gray-600 mb-8">Sua presença é nosso maior presente! Mas, se quiser nos ajudar a montar nosso cantinho, ficaremos muito felizes.</p>
+
+          {mySelectedGifts.length > 0 && (
+            <div className="mb-8">
+              <h3 className="text-xl font-semibold text-accent mb-4">Seus presentes escolhidos:</h3>
+              <div className="grid grid-cols-1 gap-4">
+                {mySelectedGifts.map(gift => (
+                  <GiftCard
+                    key={gift.id}
+                    gift={gift}
+                    isSelected={true}
+                    onUnselect={() => handleUnselectGift(gift.id)}
+                  />
+                ))}
+              </div>
+              <hr className="my-8 border-border" />
             </div>
           )}
-          {gifts.every(g => g.taken) && <p className="text-center text-gray-500 mt-6">Todos os presentes já foram escolhidos! Agradecemos o carinho de todos.</p>}
+
+          <h3 className="text-xl font-semibold text-accent mb-4">Disponíveis para presentear:</h3>
+          <div className="grid grid-cols-1 gap-4">
+            {availableGifts.map(gift => (
+              <GiftCard
+                key={gift.id}
+                gift={gift}
+                isSelected={false}
+                onSelect={() => handleSelectGift(gift.id)}
+              />
+            ))}
+          </div>
+          {availableGifts.length === 0 && mySelectedGifts.length === 0 && <p className="text-center text-gray-500 mt-6">Nenhum presente na lista ainda. Volte em breve!</p>}
         </div>
       </main>
 
