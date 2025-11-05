@@ -298,7 +298,7 @@ function HomePage({ user }) {
           <div className="grid grid-cols-3 gap-4 mt-6">
             <a href={`https://waze.com/ul?q=${encodeURIComponent(eventAddress)}`} className="flex flex-col items-center gap-2 p-3 bg-secondary hover:bg-border rounded-xl transition"><WazeLogo /><span className="text-xs font-medium text-accent">Waze</span></a>
             <a href={`https://m.uber.com/ul/?action=setPickup&dropoff[formatted_address]=${encodeURIComponent(eventAddress)}`} className="flex flex-col items-center gap-2 p-3 bg-secondary hover:bg-border rounded-xl transition"><UberLogo /><span className="text-xs font-medium text-accent">Uber</span></a>
-            <a href={`https://google.com/maps/search/?api=1&query=${encodeURIComponent(eventAddress)}`} className="flex flex-col items-center gap-2 p-3 bg-secondary hover:bg-border rounded-xl transition"><GoogleMapsLogo /><span className="text-xs font-medium text-accent">Maps</span></a>
+            <a href={`https://www.google.com/maps/place/${encodeURIComponent(eventAddress)}`} className="flex flex-col items-center gap-2 p-3 bg-secondary hover:bg-border rounded-xl transition"><GoogleMapsLogo /><span className="text-xs font-medium text-accent">Maps</span></a>
           </div>
         </div>
 
