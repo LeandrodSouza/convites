@@ -283,7 +283,7 @@ function HomePage({ user }) {
           <img src={user.photoURL} alt={user.displayName} className="w-10 h-10 rounded-full border-2 border-primary" />
           <div>
             <p className="text-sm">Que bom te ver, <span className="font-semibold text-primary">{user.displayName}</span>!</p>
-            <p className="text-xs text-gray-600">Vem ver as novidades!</p>
+           
           </div>
         </div>
         <div>
@@ -319,12 +319,11 @@ function HomePage({ user }) {
         </div>
 
         <div ref={listaRef} className="bg-white rounded-card border border-border shadow-subtle p-6">
-          <h2 className="text-4xl font-meow text-accent mb-4 text-center">Nossa lista de presentes</h2>
-          <p className="text-center text-gray-600 mb-8">Sua presença é nosso maior presente! Mas, se quiser nos ajudar a montar nosso cantinho, ficaremos muito felizes.</p>
+                <h2 className="text-4xl font-meow text-accent mb-4 text-center">Sua presença é nosso maior presente! Mas, se quiser nos ajudar a montar nosso cantinho, ficaremos muito felizes.</h2>
 
           {mySelectedGifts.length > 0 && (
             <div className="mb-8">
-              <h3 className="text-xl font-semibold text-accent mb-4">Seus presentes escolhidos:</h3>
+              <h3 className="text-xl font-semibold text-accent mb-4">Oba! Você vai levar este(s)🎉🎉: </h3>
               <div className="grid grid-cols-1 gap-4">
                 {mySelectedGifts.map(gift => (
                   <GiftCard
@@ -339,7 +338,7 @@ function HomePage({ user }) {
             </div>
           )}
 
-          <h3 className="text-xl font-semibold text-accent mb-4">Disponíveis para presentear:</h3>
+          <h3 className="text-xl font-semibold text-accent mb-4">Listinha de mimos que ainda faltam 💚</h3>
           <div className="grid grid-cols-1 gap-4">
             {availableGifts.map(gift => (
               <GiftCard
