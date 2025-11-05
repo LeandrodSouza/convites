@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '../services/firebase';
-import { collection, onSnapshot, query, doc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { getUserById } from '../services/userService';
 import { getEventSettings } from '../services/eventSettingsService';
 import GiftCard from '../components/GiftCard';
@@ -14,7 +14,7 @@ function HomePage({ user }) {
   const [gifts, setGifts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [selectedGift, setSelectedGift] = useState(null);
+  const [selectedGifts, setSelectedGifts] = useState([]);
   const [toasts, setToasts] = useState([]);
   const [eventAddress, setEventAddress] = useState('');
   const [eventDate, setEventDate] = useState('');
@@ -24,9 +24,9 @@ function HomePage({ user }) {
   const localRef = useRef(null);
   const homeRef = useRef(null);
 
-  const selectedGiftRef = useRef(selectedGift);
+  const selectedGiftsRef = useRef(selectedGifts);
   useEffect(() => {
-    selectedGiftRef.current = selectedGift;
+    selectedGiftsRef.current = selectedGifts;
   });
 
   useEffect(() => {
@@ -46,12 +46,15 @@ function HomePage({ user }) {
           if (change.type === 'modified') {
             const oldData = prevGifts.find(g => g.id === change.doc.id);
             const newData = change.doc.data();
-            if (oldData && !oldData.taken && newData.taken && selectedGiftRef.current !== change.doc.id) {
-              showToast(`Presente "${newData.name}" foi escolhido!`);
+            if (oldData && newData.takenBy && (!oldData.takenBy || oldData.takenBy.length < newData.takenBy.length)) {
+              const newUser = newData.takenBy[newData.takenBy.length - 1];
+              if (newUser !== user.displayName) {
+                showToast(`Oba! "${newData.name}" foi escolhido por ${newUser}!`);
+              }
             }
           }
         });
-        return giftsData;
+        return giftsData.sort((a, b) => (a.takenBy?.length || 0) - (b.takenBy?.length || 0));
       });
     }, (error) => {
       console.error('Erro ao carregar presentes:', error);
@@ -88,7 +91,7 @@ function HomePage({ user }) {
         navigate('/pending');
         return;
       }
-      setSelectedGift(status.selectedGift || null);
+      setSelectedGifts(status.selectedGifts || []);
     } catch (err) {
       setError('Erro ao carregar seus dados.');
     } finally {
@@ -100,26 +103,38 @@ function HomePage({ user }) {
     try {
       const giftRef = doc(db, 'gifts', giftId);
       const userRef = doc(db, 'users', user.uid);
-      await updateDoc(giftRef, { taken: true, takenBy: user.displayName });
-      await updateDoc(userRef, { selectedGift: giftId });
-      setSelectedGift(giftId);
-      showToast('Presente reservado com sucesso! 💚');
+
+      await updateDoc(giftRef, {
+        takenBy: arrayUnion(user.displayName)
+      });
+      await updateDoc(userRef, {
+        selectedGifts: arrayUnion(giftId)
+      });
+
+      setSelectedGifts(prev => [...prev, giftId]);
+      showToast('Oba! Presente escolhido! 💚');
     } catch (err) {
-      showToast('Erro ao reservar. Tente novamente.', 'error');
+      showToast('Ops, algo deu errado. Tente de novo.', 'error');
     }
   };
 
   const handleUnselectGift = async (giftId) => {
-    if (!giftId || !window.confirm('Deseja mesmo alterar sua escolha?')) return;
+    if (!giftId || !window.confirm('Poxa, quer mesmo mudar de ideia?')) return;
     try {
       const giftRef = doc(db, 'gifts', giftId);
       const userRef = doc(db, 'users', user.uid);
-      await updateDoc(giftRef, { taken: false, takenBy: null });
-      await updateDoc(userRef, { selectedGift: null });
-      setSelectedGift(null);
-      showToast('Escolha alterada. Agora você pode selecionar outro presente.');
+
+      await updateDoc(giftRef, {
+        takenBy: arrayRemove(user.displayName)
+      });
+      await updateDoc(userRef, {
+        selectedGifts: arrayRemove(giftId)
+      });
+
+      setSelectedGifts(prev => prev.filter(id => id !== giftId));
+      showToast('Tudo bem, você pode escolher outro item!');
     } catch (err) {
-      showToast('Erro ao alterar. Tente novamente.', 'error');
+      showToast('Eita, não conseguimos alterar. Tente de novo.', 'error');
     }
   };
 
@@ -148,11 +163,11 @@ function HomePage({ user }) {
     }
   };
 
-  if (loading) return <div className="h-screen flex items-center justify-center bg-secondary"><p>Carregando...</p></div>;
+  if (loading) return <div className="h-screen flex items-center justify-center bg-secondary"><p>Carregando as novidades...</p></div>;
   if (error) return <div className="h-screen flex items-center justify-center bg-red-100"><p>{error}</p></div>;
 
   const isAdmin = (import.meta.env.VITE_ADMIN_EMAILS || '').includes(user.email);
-  const myGift = gifts.find(g => g.taken && g.takenBy === user.displayName);
+  const myGifts = gifts.filter(g => selectedGifts.includes(g.id));
 
   return (
     <div className="bg-secondary min-h-screen font-sans text-accent relative">
@@ -165,8 +180,8 @@ function HomePage({ user }) {
         <div className="flex items-center gap-3">
           <img src={user.photoURL} alt={user.displayName} className="w-10 h-10 rounded-full border-2 border-primary" />
           <div>
-            <p className="text-sm">Olá, <span className="font-semibold text-primary">{user.displayName}</span>!</p>
-            <p className="text-xs text-gray-600">Seja bem-vindo(a)!</p>
+            <p className="text-sm">Que bom te ver, <span className="font-semibold text-primary">{user.displayName}</span>!</p>
+            <p className="text-xs text-gray-600">Vem ver as novidades!</p>
           </div>
         </div>
         <div>
@@ -191,7 +206,7 @@ function HomePage({ user }) {
         </div>
 
         <div ref={localRef} className="bg-white rounded-card border border-border shadow-subtle p-6 mb-8 text-center">
-          <h2 className="text-4xl font-meow text-accent mb-4">Detalhes do Evento</h2>
+          <h2 className="text-4xl font-meow text-accent mb-4">Save the Date!</h2>
           <p className="text-xl font-semibold text-primary">{formatEventDateTime()}</p>
           <p className="text-gray-600 mt-2 text-lg">{eventAddress}</p>
           <div className="grid grid-cols-3 gap-4 mt-6">
@@ -202,20 +217,39 @@ function HomePage({ user }) {
         </div>
 
         <div ref={listaRef} className="bg-white rounded-card border border-border shadow-subtle p-6">
-          <h2 className="text-xl font-semibold text-center text-accent mb-6">Escolha um presente para nos ajudar a montar nosso lar 💚</h2>
-          {myGift ? (
-            <div>
-              <p className="text-center mb-4 text-primary">Você escolheu nosso presente! Muito obrigado! 💚</p>
-              <GiftCard gift={myGift} isSelected onUnselect={() => handleUnselectGift(myGift.id)} />
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-4">
-              {gifts.filter(g => !g.taken).map(gift => (
-                <GiftCard key={gift.id} gift={gift} onSelect={() => handleSelectGift(gift.id)} />
-              ))}
+          <h2 className="text-4xl font-meow text-accent mb-4 text-center">Nossa lista de presentes</h2>
+          <p className="text-center text-gray-600 mb-8">Sua presença é nosso maior presente! Mas, se quiser nos ajudar a montar nosso cantinho, ficaremos muito felizes.</p>
+
+          {myGifts.length > 0 && (
+            <div className="mb-8">
+              <h3 className="text-xl font-semibold text-accent mb-4">Seus presentes escolhidos:</h3>
+              <div className="grid grid-cols-1 gap-4">
+                {myGifts.map(gift => (
+                  <GiftCard
+                    key={gift.id}
+                    gift={gift}
+                    isSelected={true}
+                    onUnselect={() => handleUnselectGift(gift.id)}
+                  />
+                ))}
+              </div>
+              <hr className="my-8 border-border" />
             </div>
           )}
-          {gifts.every(g => g.taken) && <p className="text-center text-gray-500 mt-6">Todos os presentes já foram escolhidos! Agradecemos o carinho de todos.</p>}
+
+          <h3 className="text-xl font-semibold text-accent mb-4">Disponíveis para presentear:</h3>
+          <div className="grid grid-cols-1 gap-4">
+            {gifts.map(gift => (
+              <GiftCard
+                key={gift.id}
+                gift={gift}
+                isSelected={selectedGifts.includes(gift.id)}
+                onSelect={() => handleSelectGift(gift.id)}
+                onUnselect={() => handleUnselectGift(gift.id)}
+              />
+            ))}
+          </div>
+          {gifts.length === 0 && <p className="text-center text-gray-500 mt-6">Nenhum presente na lista ainda. Volte em breve!</p>}
         </div>
       </main>
 

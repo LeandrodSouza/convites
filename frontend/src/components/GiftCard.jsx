@@ -1,10 +1,9 @@
 import { useState } from 'react';
-import { API_URL } from '../services/api'; // Import the centralized API_URL
+import { API_URL } from '../services/api';
 
-function GiftCard({ gift, onSelect, onUnselect, disabled, isSelected }) {
+function GiftCard({ gift, onSelect, onUnselect, isSelected }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Use the centralized API_URL to construct the image path
   const imageUrl = `${API_URL}/uploads/${gift.imagePath}`;
 
   const handleImageClick = (e) => {
@@ -18,14 +17,16 @@ function GiftCard({ gift, onSelect, onUnselect, disabled, isSelected }) {
     setIsModalOpen(false);
   };
 
+  const takenByCount = gift.takenBy ? gift.takenBy.length : 0;
+  const isTaken = takenByCount > 0;
+
   return (
     <>
       <div className={`
         flex items-center gap-4 p-4 rounded-xl border transition-all duration-300
-        ${isSelected ? 'bg-brand-light border-primary' : 'bg-white border-border'}
-        ${gift.taken && !isSelected ? 'opacity-60' : ''}
+        ${isSelected ? 'bg-green-100 border-green-400' : 'bg-white border-border'}
+        ${isTaken && !isSelected ? 'opacity-70' : ''}
       `}>
-        {/* Clickable Round Image */}
         {gift.imagePath && (
           <div
             className="flex-shrink-0 w-16 h-16 rounded-full bg-secondary overflow-hidden cursor-pointer"
@@ -40,9 +41,14 @@ function GiftCard({ gift, onSelect, onUnselect, disabled, isSelected }) {
           </div>
         )}
 
-        {/* Gift Info and Actions */}
         <div className="flex-grow">
           <h3 className="font-semibold text-accent leading-tight">{gift.name}</h3>
+
+          {isTaken && (
+            <p className="text-xs text-gray-500 mt-1">
+              {takenByCount} pessoa{takenByCount > 1 ? 's' : ''} já escolheram.
+            </p>
+          )}
 
           {gift.link && (
             <a
@@ -57,30 +63,25 @@ function GiftCard({ gift, onSelect, onUnselect, disabled, isSelected }) {
           )}
         </div>
 
-        {/* Action Button Area */}
         <div className="flex-shrink-0">
           {isSelected ? (
             <button
               onClick={() => onUnselect(gift.id)}
-              className="px-3 py-2 text-sm font-semibold text-primary border border-primary rounded-lg hover:bg-primary/10 transition"
+              className="px-3 py-2 text-sm font-semibold text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition"
             >
-              Mudar
+              Mudar ideia
             </button>
-          ) : gift.taken ? (
-            <span className="px-3 py-2 text-sm font-semibold text-gray-500">Escolhido</span>
           ) : (
             <button
               onClick={() => onSelect(gift.id)}
-              disabled={disabled}
-              className="px-3 py-2 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-primary-hover disabled:opacity-50 transition"
+              className="px-3 py-2 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-primary-hover transition"
             >
-              Escolher
+              Quero dar!
             </button>
           )}
         </div>
       </div>
 
-      {/* Image Modal */}
       {isModalOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4"
