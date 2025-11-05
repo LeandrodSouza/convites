@@ -95,8 +95,11 @@ function LoginPage() {
       {/* Login Card */}
       <div className="bg-white/85 backdrop-blur-md p-8 md:p-12 rounded-card border border-border shadow-subtle max-w-md w-full text-center relative z-10">
         <div className="mb-8">
-          <h1 className="text-6xl font-meow text-primary mb-2">Nosso Brunch</h1>
-          <h2 className="text-2xl font-bold text-accent tracking-tight">de casa nova</h2>
+          <h1 className="font-meow text-primary leading-tight">
+            <span className="text-6xl">Nosso Brunch</span>
+            <br />
+            <span className="text-5xl">de casa nova💚</span>
+          </h1>
           <p className="text-gray-600 mt-4">Faça login para continuar</p>
         </div>
 
