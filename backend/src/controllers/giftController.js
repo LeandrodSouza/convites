@@ -1,5 +1,5 @@
-const { getAllGifts, getGift, takeGift } = require('../models/giftModel');
-const { getInvite, updateInvite } = require('../models/inviteModel');
+const { getAllGifts, takeGift, unselectGift: unselectGiftModel } = require('../models/giftModel');
+const { updateUser } = require('../models/userModel');
 const { sendEmail } = require('../services/emailService');
 
 const listGifts = async (req, res) => {
@@ -15,36 +15,23 @@ const listGifts = async (req, res) => {
 const selectGift = async (req, res) => {
   try {
     const { giftId } = req.params;
-    const { token } = req.body;
+    const { user } = req;
 
-    const invite = await getInvite(token);
-
-    if (!invite) {
-      return res.status(404).json({ error: 'Invite not found' });
-    }
-
-    if (!invite.confirmed) {
-      return res.status(400).json({ error: 'Please confirm presence first' });
-    }
-
-    if (invite.giftId) {
+    if (user.selected_gifts && user.selected_gifts.length > 0) {
       return res.status(400).json({ error: 'You already selected a gift' });
     }
 
-    // Take the gift (with transaction to prevent race conditions)
-    const gift = await takeGift(giftId, invite.email);
+    const gift = await takeGift(giftId, user.email);
 
-    // Update invite with gift selection
-    await updateInvite(token, {
-      giftId
+    await updateUser(user.id, {
+      selected_gifts: [giftId],
     });
 
-    // Send email notification
     await sendEmail('gift', {
-      name: invite.name,
-      email: invite.email,
+      name: user.display_name,
+      email: user.email,
       giftName: gift.name,
-      giftLink: gift.link
+      giftLink: gift.link,
     });
 
     res.json({ success: true, gift });
@@ -59,7 +46,31 @@ const selectGift = async (req, res) => {
   }
 };
 
+const unselectGift = async (req, res) => {
+    try {
+        const { giftId } = req.params;
+        const { user } = req;
+
+        if (!user.selected_gifts || !user.selected_gifts.includes(giftId)) {
+            return res.status(400).json({ error: 'You have not selected this gift' });
+        }
+
+        await unselectGiftModel(giftId);
+
+        await updateUser(user.id, {
+            selected_gifts: [],
+        });
+
+        res.json({ success: true, message: 'Gift unselected' });
+    } catch (error)
+    {
+        console.error('Error unselecting gift:', error);
+        res.status(500).json({ error: 'Error unselecting gift' });
+    }
+};
+
 module.exports = {
   listGifts,
-  selectGift
+  selectGift,
+  unselectGift
 };

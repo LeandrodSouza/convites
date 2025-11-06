@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signInWithPopup, getRedirectResult, signInWithRedirect } from 'firebase/auth';
-import { auth, googleProvider } from '../services/firebase';
+import { supabase } from '../services/supabase';
 import { api } from '../services/api';
 import { getUserById } from '../services/userService';
 
@@ -10,9 +9,10 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const processAuth = async (user) => {
+  const processAuth = async (session) => {
     setLoading(true);
     try {
+      const user = session.user;
       const adminEmails = (import.meta.env.VITE_ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
       const isAdmin = user.email && adminEmails.includes(user.email.toLowerCase());
 
@@ -21,15 +21,15 @@ function LoginPage() {
         return;
       }
 
-      const token = await user.getIdToken();
-      await api.createOrUpdateUser(token, user.email, user.displayName, user.photoURL);
-      const userStatus = await getUserById(user.uid);
+      const token = session.provider_token;
+      await api.createOrUpdateUser(token, user.email, user.user_metadata.full_name, user.user_metadata.avatar_url);
+      const userStatus = await getUserById(user.id);
 
       if (userStatus?.status === 'approved') {
         navigate('/home');
       } else if (userStatus?.status === 'rejected') {
         setError('Seu acesso foi negado. Fale com os administradores.');
-        await auth.signOut();
+        await supabase.auth.signOut();
       } else {
         navigate('/pending');
       }
@@ -42,43 +42,29 @@ function LoginPage() {
   };
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(user => {
-      if (user) {
-        processAuth(user);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        processAuth(session);
       }
     });
 
-    (async () => {
-      try {
-        const result = await getRedirectResult(auth);
-        if (result && result.user) {
-          await processAuth(result.user);
-        }
-      } catch (error) {
-        console.error("Redirect Error:", error);
-        setError("Falha ao autenticar. Tente novamente.");
-      }
-    })();
-
-    return () => unsubscribe();
+    return () => subscription.unsubscribe();
   }, [navigate]);
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setError('');
     try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (err) {
-      if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
-        // User closed the popup, do nothing.
-      } else {
-        try {
-          await signInWithRedirect(auth, googleProvider);
-        } catch (redirectErr) {
-          setError('Falha ao fazer login. Tente novamente.');
-          console.error(redirectErr);
-        }
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+      });
+
+      if (error) {
+        throw error;
       }
+    } catch (err) {
+      setError('Falha ao fazer login. Tente novamente.');
+      console.error(err);
     } finally {
       setLoading(false);
     }

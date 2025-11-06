@@ -1,10 +1,10 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { initializeFirebase } = require('./src/services/firebaseService');
+const { initializeSupabase } = require('./src/services/supabaseService');
 
-// Initialize Firebase
-initializeFirebase();
+// Initialize Supabase
+initializeSupabase();
 
 const app = express();
 

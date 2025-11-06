@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signOut } from 'firebase/auth';
-import { auth } from '../services/firebase';
+import { supabase } from '../services/supabase';
 import { api } from '../services/api';
 import { getAllUsers } from '../services/userService';
 import AdminGiftForm from '../components/AdminGiftForm';
@@ -10,7 +9,7 @@ import EditGiftModal from '../components/EditGiftModal';
 
 function AdminPage({ user }) {
   const navigate = useNavigate();
-  const [authToken, setAuthToken] = useState('');
+  const [session, setSession] = useState(null);
   const [gifts, setGifts] = useState([]);
   const [emailLogs, setEmailLogs] = useState([]);
   const [users, setUsers] = useState([]);
@@ -34,16 +33,21 @@ function AdminPage({ user }) {
       return;
     }
 
-    // Get Firebase auth token
-    auth.currentUser?.getIdToken().then(token => {
-      setAuthToken(token);
-      loadAdminData(token);
-    });
+    const fetchSession = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
+        if (session) {
+            loadAdminData(session);
+        }
+    };
+
+    fetchSession();
   }, [isAdmin]);
 
-  const loadAdminData = async (token) => {
+  const loadAdminData = async (currentSession) => {
     try {
       setLoading(true);
+      const token = currentSession.provider_token;
       const [giftsData, logsData, usersData, eventSettings] = await Promise.all([
         api.getAdminGifts(token),
         api.getEmailLogs(token),
@@ -71,9 +75,9 @@ function AdminPage({ user }) {
     if (!confirm(`Aprovar usuario ${userName}?`)) return;
 
     try {
-      await api.approveUser(authToken, userId, user.email);
+      await api.approveUser(session.provider_token, userId, user.email);
       alert('Usuario aprovado com sucesso!');
-      await loadAdminData(authToken);
+      await loadAdminData(session);
     } catch (err) {
       alert('Erro ao aprovar usuario');
       console.error(err);
@@ -84,9 +88,9 @@ function AdminPage({ user }) {
     if (!confirm(`Rejeitar usuario ${userName}?`)) return;
 
     try {
-      await api.rejectUser(authToken, userId, user.email);
+      await api.rejectUser(session.provider_token, userId, user.email);
       alert('Usuario rejeitado!');
-      await loadAdminData(authToken);
+      await loadAdminData(session);
     } catch (err) {
       alert('Erro ao rejeitar usuario');
       console.error(err);
@@ -95,12 +99,12 @@ function AdminPage({ user }) {
 
   const handleAddGift = async (name, link, imagePath) => {
     try {
-      const result = await api.addGift(authToken, name, link, imagePath);
+      const result = await api.addGift(session.provider_token, name, link, imagePath);
       if (result.error) {
         alert('Erro ao adicionar presente: ' + result.error);
         return false;
       }
-      await loadAdminData(authToken);
+      await loadAdminData(session);
       return true;
     } catch (err) {
       alert('Erro ao adicionar presente');
@@ -119,7 +123,7 @@ function AdminPage({ user }) {
 
     try {
       const result = await api.updateEventSettings(
-        authToken,
+        session.provider_token,
         eventAddress,
         eventLatitude || null,
         eventLongitude || null,
@@ -142,14 +146,14 @@ function AdminPage({ user }) {
 
   const handleEditGift = async (giftId, name, link, imagePath) => {
     try {
-      const result = await api.updateGift(authToken, giftId, name, link, imagePath);
+      const result = await api.updateGift(session.provider_token, giftId, name, link, imagePath);
       if (result.error) {
         alert('Erro ao atualizar presente: ' + result.error);
         return false;
       }
       alert('Presente atualizado com sucesso!');
       setEditingGift(null);
-      await loadAdminData(authToken);
+      await loadAdminData(session);
       return true;
     } catch (err) {
       alert('Erro ao atualizar presente');
@@ -162,13 +166,13 @@ function AdminPage({ user }) {
     if (!confirm(`Deseja realmente deletar o presente "${giftName}"?`)) return;
 
     try {
-      const result = await api.deleteGift(authToken, giftId);
+      const result = await api.deleteGift(session.provider_token, giftId);
       if (result.error) {
         alert('Erro ao deletar presente: ' + result.error);
         return;
       }
       alert('Presente deletado com sucesso!');
-      await loadAdminData(authToken);
+      await loadAdminData(session);
     } catch (err) {
       alert('Erro ao deletar presente');
       console.error(err);
@@ -176,8 +180,8 @@ function AdminPage({ user }) {
   };
 
   const handleLogout = async () => {
-    await signOut(auth);
-    navigate('/invite');
+    await supabase.auth.signOut();
+    navigate('/login');
   };
 
   if (loading) {
@@ -403,16 +407,16 @@ function AdminPage({ user }) {
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm">
-                        {gift.takenBy && gift.takenBy.length > 0 ? (
+                        {gift.taken ? (
                           <span className="text-primary font-medium">Escolhido</span>
                         ) : (
                           <span className="text-gray-400">Disponivel</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm">{gift.takenBy && gift.takenBy.length > 0 ? gift.takenBy.join(', ') : '-'}</td>
+                      <td className="px-4 py-3 text-sm">{gift.taken_by || '-'}</td>
                       <td className="px-4 py-3 text-sm">
                         <div className="flex gap-2 justify-center">
-                          {(!gift.takenBy || gift.takenBy.length === 0) && (
+                          {!gift.taken && (
                             <>
                               <button
                                 onClick={() => setEditingGift(gift)}
@@ -428,7 +432,7 @@ function AdminPage({ user }) {
                               </button>
                             </>
                           )}
-                          {gift.takenBy && gift.takenBy.length > 0 && (
+                          {gift.taken && (
                             <span className="text-xs text-gray-400 italic">Escolhido</span>
                           )}
                         </div>
@@ -464,21 +468,21 @@ function AdminPage({ user }) {
 
                   <div className="mb-3">
                     <p className="text-xs text-gray-500 mb-1">Status</p>
-                    {gift.takenBy && gift.takenBy.length > 0 ? (
+                    {gift.taken ? (
                       <span className="text-sm text-primary font-medium">Escolhido</span>
                     ) : (
                       <span className="text-sm text-gray-400">Disponível</span>
                     )}
                   </div>
 
-                  {gift.takenBy && gift.takenBy.length > 0 && (
+                  {gift.taken && (
                     <div className="mb-3">
                       <p className="text-xs text-gray-500 mb-1">Escolhido por</p>
-                      <p className="text-sm text-accent">{gift.takenBy.join(', ')}</p>
+                      <p className="text-sm text-accent">{gift.taken_by}</p>
                     </div>
                   )}
 
-                  {(!gift.takenBy || gift.takenBy.length === 0) && (
+                  {!gift.taken && (
                     <div className="flex gap-2 mt-4 justify-center">
                       <button
                         onClick={() => setEditingGift(gift)}
@@ -530,26 +534,26 @@ function AdminPage({ user }) {
                         <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50">
                           <td className="px-4 py-3 text-sm">
                             <div className="flex items-center gap-2">
-                              {u.photoURL && (
-                                <img src={u.photoURL} alt={u.displayName} className="w-8 h-8 rounded-full" />
+                              {u.photo_url && (
+                                <img src={u.photo_url} alt={u.display_name} className="w-8 h-8 rounded-full" />
                               )}
-                              <span className="font-medium">{u.displayName || '-'}</span>
+                              <span className="font-medium">{u.display_name || '-'}</span>
                             </div>
                           </td>
                           <td className="px-4 py-3 text-sm">{u.email}</td>
                           <td className="px-4 py-3 text-sm text-gray-600">
-                            {u.createdAt ? new Date(u.createdAt._seconds * 1000).toLocaleDateString('pt-BR') : '-'}
+                            {u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : '-'}
                           </td>
                           <td className="px-4 py-3 text-sm">
                             <div className="flex gap-2 justify-center">
                               <button
-                                onClick={() => handleApproveUser(u.userId, u.displayName || u.email)}
+                                onClick={() => handleApproveUser(u.id, u.display_name || u.email)}
                                 className="bg-primary hover:bg-primary-hover text-white font-medium py-1.5 px-4 rounded-lg transition text-xs"
                               >
                                 Aprovar
                               </button>
                               <button
-                                onClick={() => handleRejectUser(u.userId, u.displayName || u.email)}
+                                onClick={() => handleRejectUser(u.id, u.display_name || u.email)}
                                 className="bg-red-600 hover:bg-red-700 text-white font-medium py-1.5 px-4 rounded-lg transition text-xs"
                               >
                                 Rejeitar
@@ -567,31 +571,31 @@ function AdminPage({ user }) {
                   {pendingUsers.map((u, idx) => (
                     <div key={idx} className="border border-yellow-200 rounded-xl p-4 bg-yellow-50">
                       <div className="flex items-center gap-3 mb-3">
-                        {u.photoURL && (
-                          <img src={u.photoURL} alt={u.displayName} className="w-12 h-12 rounded-full flex-shrink-0" />
+                        {u.photo_url && (
+                          <img src={u.photo_url} alt={u.display_name} className="w-12 h-12 rounded-full flex-shrink-0" />
                         )}
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-accent truncate">{u.displayName || '-'}</p>
+                          <p className="text-sm font-medium text-accent truncate">{u.display_name || '-'}</p>
                           <p className="text-xs text-gray-600 truncate">{u.email}</p>
                         </div>
                       </div>
 
-                      {u.createdAt && (
+                      {u.created_at && (
                         <div className="mb-3">
                           <p className="text-xs text-gray-500 mb-1">Data de cadastro</p>
-                          <p className="text-sm text-accent">{new Date(u.createdAt._seconds * 1000).toLocaleDateString('pt-BR')}</p>
+                          <p className="text-sm text-accent">{new Date(u.created_at).toLocaleDateString('pt-BR')}</p>
                         </div>
                       )}
 
                       <div className="flex gap-2 mt-4 justify-center">
                         <button
-                          onClick={() => handleApproveUser(u.userId, u.displayName || u.email)}
+                          onClick={() => handleApproveUser(u.id, u.display_name || u.email)}
                           className="flex-1 min-h-[44px] bg-primary hover:bg-primary-hover text-white font-medium py-2 px-3 rounded-lg transition text-sm text-center"
                         >
                           Aprovar
                         </button>
                         <button
-                          onClick={() => handleRejectUser(u.userId, u.displayName || u.email)}
+                          onClick={() => handleRejectUser(u.id, u.display_name || u.email)}
                           className="flex-1 min-h-[44px] bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-3 rounded-lg transition text-sm text-center"
                         >
                           Rejeitar
@@ -622,15 +626,15 @@ function AdminPage({ user }) {
                     </thead>
                     <tbody>
                       {approvedUsers.map((u, idx) => {
-                        const userGifts = gifts.filter(g => u.selectedGifts?.includes(g.id));
+                        const userGifts = gifts.filter(g => u.selected_gifts?.includes(g.id));
                         return (
                           <tr key={idx} className="border-b border-gray-200">
                             <td className="px-4 py-3 text-sm">
                               <div className="flex items-center gap-2">
-                                {u.photoURL && (
-                                  <img src={u.photoURL} alt={u.displayName} className="w-8 h-8 rounded-full" />
+                                {u.photo_url && (
+                                  <img src={u.photo_url} alt={u.display_name} className="w-8 h-8 rounded-full" />
                                 )}
-                                <span className="font-medium">{u.displayName || '-'}</span>
+                                <span className="font-medium">{u.display_name || '-'}</span>
                               </div>
                             </td>
                             <td className="px-4 py-3 text-sm">{u.email}</td>
@@ -651,15 +655,15 @@ function AdminPage({ user }) {
                 {/* Mobile Cards */}
                 <div className="md:hidden space-y-3">
                   {approvedUsers.map((u, idx) => {
-                    const userGifts = gifts.filter(g => u.selectedGifts?.includes(g.id));
+                    const userGifts = gifts.filter(g => u.selected_gifts?.includes(g.id));
                     return (
                       <div key={idx} className="border border-green-200 rounded-xl p-4 bg-green-50">
                         <div className="flex items-center gap-3 mb-3">
-                          {u.photoURL && (
-                            <img src={u.photoURL} alt={u.displayName} className="w-12 h-12 rounded-full flex-shrink-0" />
+                          {u.photo_url && (
+                            <img src={u.photo_url} alt={u.display_name} className="w-12 h-12 rounded-full flex-shrink-0" />
                           )}
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-accent truncate">{u.displayName || '-'}</p>
+                            <p className="text-sm font-medium text-accent truncate">{u.display_name || '-'}</p>
                             <p className="text-xs text-gray-600 truncate">{u.email}</p>
                           </div>
                         </div>

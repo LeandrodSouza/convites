@@ -1,7 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { auth } from './services/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { supabase } from './services/supabase';
 import InvitePage from './pages/InvitePage';
 import HomePage from './pages/HomePage';
 import AdminPage from './pages/AdminPage';
@@ -10,16 +9,23 @@ import NotFoundPage from './pages/NotFoundPage';
 import PendingApprovalPage from './pages/PendingApprovalPage';
 
 function App() {
-  const [user, setUser] = useState(null);
+  const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
+    const fetchSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
       setLoading(false);
+    };
+
+    fetchSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
     });
 
-    return () => unsubscribe();
+    return () => subscription.unsubscribe();
   }, []);
 
   if (loading) {
@@ -30,12 +36,14 @@ function App() {
     );
   }
 
+  const user = session?.user;
+
   return (
     <Router>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/pending" element={user ? <PendingApprovalPage user={user} /> : <Navigate to="/login" />} />
-        <Route path="/invite" element={<InvitePage user={user} />} />
+        <Route path="/invite" element={user ? <InvitePage user={user} /> : <Navigate to="/login" />} />
         <Route path="/home" element={user ? <HomePage user={user} /> : <Navigate to="/login" />} />
         <Route path="/admin" element={user ? <AdminPage user={user} /> : <Navigate to="/login" />} />
         <Route path="/" element={<Navigate to="/login" />} />

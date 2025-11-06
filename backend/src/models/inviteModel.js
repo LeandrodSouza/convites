@@ -1,41 +1,84 @@
-const { getFirestore } = require('../services/firebaseService');
+const { getSupabase } = require('../services/supabaseService');
 
 const createInvite = async (token) => {
-  const db = getFirestore();
-  const inviteData = {
-    token,
-    email: null,
-    name: null,
-    confirmed: false,
-    giftId: null,
-    used: false,
-    createdAt: new Date()
-  };
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('invites')
+    .insert([
+      {
+        token,
+        email: null,
+        name: null,
+        confirmed: false,
+        gift_id: null,
+        used: false,
+      },
+    ])
+    .select()
+    .single();
 
-  await db.collection('invites').doc(token).set(inviteData);
-  return inviteData;
+  if (error) {
+    console.error('Error creating invite:', error);
+    throw new Error('Error creating invite');
+  }
+
+  return data;
 };
 
 const getInvite = async (token) => {
-  const db = getFirestore();
-  const doc = await db.collection('invites').doc(token).get();
-  return doc.exists ? { id: doc.id, ...doc.data() } : null;
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('invites')
+    .select('*')
+    .eq('token', token)
+    .single();
+
+  if (error) {
+    // This is not a critical error if the invite simply doesn't exist.
+    // The controller should handle the case where data is null.
+    if (error.code !== 'PGRST116') { // 'PGRST116' is "JSON object requested, multiple (or no) rows returned"
+        console.error('Error getting invite:', error);
+    }
+    return null;
+  }
+
+  return data;
 };
 
-const updateInvite = async (token, data) => {
-  const db = getFirestore();
-  await db.collection('invites').doc(token).update(data);
+const updateInvite = async (token, inviteData) => {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('invites')
+    .update(inviteData)
+    .eq('token', token)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating invite:', error);
+    throw new Error('Error updating invite');
+  }
+
+  return data;
 };
 
 const getAllInvites = async () => {
-  const db = getFirestore();
-  const snapshot = await db.collection('invites').get();
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('invites')
+    .select('*');
+
+  if (error) {
+    console.error('Error getting all invites:', error);
+    throw new Error('Error getting all invites');
+  }
+
+  return data;
 };
 
 module.exports = {
   createInvite,
   getInvite,
   updateInvite,
-  getAllInvites
+  getAllInvites,
 };

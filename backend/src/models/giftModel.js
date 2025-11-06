@@ -1,61 +1,134 @@
-const { getFirestore } = require('../services/firebaseService');
+const { getSupabase } = require('../services/supabaseService');
 
 const createGift = async (giftData) => {
-  const db = getFirestore();
-  const gift = {
-    name: giftData.name,
-    link: giftData.link || '',
-    imagePath: giftData.imagePath || '',
-    taken: false,
-    takenBy: null,
-    takenAt: null,
-    createdAt: new Date()
-  };
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('gifts')
+    .insert([
+      {
+        name: giftData.name,
+        link: giftData.link || '',
+        image_path: giftData.imagePath || '',
+        taken: false,
+        taken_by: null,
+        taken_at: null,
+      },
+    ])
+    .select()
+    .single();
 
-  const docRef = await db.collection('gifts').add(gift);
-  return { id: docRef.id, ...gift };
+  if (error) {
+    console.error('Error creating gift:', error);
+    throw new Error('Error creating gift');
+  }
+
+  return data;
 };
 
 const getGift = async (giftId) => {
-  const db = getFirestore();
-  const doc = await db.collection('gifts').doc(giftId).get();
-  return doc.exists ? { id: doc.id, ...doc.data() } : null;
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('gifts')
+    .select('*')
+    .eq('id', giftId)
+    .single();
+
+  if (error) {
+    console.error('Error getting gift:', error);
+    throw new Error('Error getting gift');
+  }
+
+  return data;
 };
 
 const getAllGifts = async () => {
-  const db = getFirestore();
-  const snapshot = await db.collection('gifts').orderBy('createdAt', 'desc').get();
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('gifts')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error getting all gifts:', error);
+    throw new Error('Error getting all gifts');
+  }
+
+  return data;
 };
 
-const updateGift = async (giftId, data) => {
-  const db = getFirestore();
-  await db.collection('gifts').doc(giftId).update(data);
+const updateGift = async (giftId, giftData) => {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('gifts')
+    .update(giftData)
+    .eq('id', giftId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating gift:', error);
+    throw new Error('Error updating gift');
+  }
+
+  return data;
 };
 
 const takeGift = async (giftId, email) => {
-  const db = getFirestore();
-  const giftRef = db.collection('gifts').doc(giftId);
+  const supabase = getSupabase();
 
-  return await db.runTransaction(async (transaction) => {
-    const giftDoc = await transaction.get(giftRef);
+  // Note: This is not a true transaction and could lead to race conditions.
+  // For a more robust solution, a database function (RPC) should be used.
+  const { data: gift, error: getError } = await supabase
+    .from('gifts')
+    .select('*')
+    .eq('id', giftId)
+    .single();
 
-    if (!giftDoc.exists) {
-      throw new Error('Gift not found');
-    }
+  if (getError || !gift) {
+    throw new Error('Gift not found');
+  }
 
-    if (giftDoc.data().taken) {
-      throw new Error('Gift already taken');
-    }
+  if (gift.taken) {
+    throw new Error('Gift already taken');
+  }
 
-    transaction.update(giftRef, {
+  const { data, error: updateError } = await supabase
+    .from('gifts')
+    .update({
       taken: true,
-      takenBy: email,
-      takenAt: new Date()
-    });
+      taken_by: email,
+      taken_at: new Date(),
+    })
+    .eq('id', giftId)
+    .select()
+    .single();
 
-    return { id: giftDoc.id, ...giftDoc.data(), taken: true, takenBy: email };
-  });
+  if (updateError) {
+    throw new Error('Error taking gift');
+  }
+
+  return data;
+};
+
+const unselectGift = async (giftId) => {
+    const supabase = getSupabase();
+    const { data, error } = await supabase
+        .from('gifts')
+        .update({
+            taken: false,
+            taken_by: null,
+            taken_at: null,
+        })
+        .eq('id', giftId)
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error unselecting gift:', error);
+        throw new Error('Error unselecting gift');
+    }
+
+    return data;
 };
 
 module.exports = {
@@ -63,5 +136,6 @@ module.exports = {
   getGift,
   getAllGifts,
   updateGift,
-  takeGift
+  takeGift,
+  unselectGift,
 };

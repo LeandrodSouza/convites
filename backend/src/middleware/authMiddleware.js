@@ -1,20 +1,36 @@
-const { admin } = require('../services/firebaseService');
+const { getSupabase } = require('../services/supabaseService');
 
-const verifyToken = async (req, res, next) => {
-  try {
-    const token = req.headers.authorization?.split('Bearer ')[1];
+const authMiddleware = async (req, res, next) => {
+    const supabase = getSupabase();
+    const token = req.headers.authorization?.split(' ')[1];
 
     if (!token) {
-      return res.status(401).json({ error: 'No token provided' });
+        return res.status(401).json({ error: 'No token provided' });
     }
 
-    const decodedToken = await admin.auth().verifyIdToken(token);
-    req.user = decodedToken;
-    next();
-  } catch (error) {
-    console.error('Error verifying token:', error);
-    res.status(401).json({ error: 'Invalid token' });
-  }
+    try {
+        const { data: { user } } = await supabase.auth.getUser(token);
+
+        if (!user) {
+            return res.status(401).json({ error: 'Invalid token' });
+        }
+
+        const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+
+        if (userError || !userData) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        req.user = userData;
+        next();
+    } catch (error) {
+        console.error('Error in auth middleware:', error);
+        res.status(401).json({ error: 'Invalid token' });
+    }
 };
 
-module.exports = { verifyToken };
+module.exports = authMiddleware;

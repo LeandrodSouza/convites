@@ -1,13 +1,13 @@
 const { createInvite, getAllInvites } = require('../models/inviteModel');
-const { createGift, getAllGifts } = require('../models/giftModel');
+const { createGift, getAllGifts, getGift } = require('../models/giftModel');
 const { generateToken } = require('../services/tokenService');
 const { sendEmail } = require('../services/emailService');
-const { getFirestore } = require('../services/firebaseService');
+const { getSupabase } = require('../services/supabaseService');
 
 const generateInvite = async (req, res) => {
   try {
     const token = generateToken();
-    const invite = await createInvite(token);
+    await createInvite(token);
 
     const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const inviteLink = `${baseUrl}/invite?t=${token}`;
@@ -55,7 +55,7 @@ const updateGift = async (req, res) => {
     }
 
     const { updateGift: updateGiftModel } = require('../models/giftModel');
-    await updateGiftModel(giftId, { name, link, imagePath });
+    await updateGiftModel(giftId, { name, link, image_path: imagePath });
 
     res.json({ success: true, message: 'Gift updated successfully' });
   } catch (error) {
@@ -67,10 +67,9 @@ const updateGift = async (req, res) => {
 const deleteGift = async (req, res) => {
   try {
     const { giftId } = req.params;
-    const { getGift } = require('../models/giftModel');
-    const db = getFirestore();
+    const supabase = getSupabase();
 
-    // Verificar se o presente existe e se está escolhido
+    // Check if the gift exists and if it's taken
     const gift = await getGift(giftId);
     if (!gift) {
       return res.status(404).json({ error: 'Gift not found' });
@@ -80,20 +79,24 @@ const deleteGift = async (req, res) => {
       return res.status(400).json({ error: 'Cannot delete a gift that has been selected' });
     }
 
-    // Deletar imagem se existir
-    if (gift.imagePath) {
+    // Delete image if it exists
+    if (gift.image_path) {
       const fs = require('fs');
       const path = require('path');
       const uploadDir = path.join(__dirname, '../../uploads');
-      const imagePath = path.join(uploadDir, gift.imagePath);
+      const imagePath = path.join(uploadDir, gift.image_path);
 
       if (fs.existsSync(imagePath)) {
         fs.unlinkSync(imagePath);
       }
     }
 
-    // Deletar presente
-    await db.collection('gifts').doc(giftId).delete();
+    // Delete gift
+    const { error } = await supabase.from('gifts').delete().eq('id', giftId);
+
+    if (error) {
+        throw new Error('Error deleting gift');
+    }
 
     res.json({ success: true, message: 'Gift deleted successfully' });
   } catch (error) {
@@ -124,18 +127,18 @@ const listAllGifts = async (req, res) => {
 
 const getEmailLogs = async (req, res) => {
   try {
-    const db = getFirestore();
-    const logsSnapshot = await db.collection('emailLogs')
-      .orderBy('sentAt', 'desc')
-      .limit(10)
-      .get();
+    const supabase = getSupabase();
+    const { data, error } = await supabase
+      .from('email_logs')
+      .select('*')
+      .order('sent_at', { ascending: false })
+      .limit(10);
 
-    const logs = logsSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    if (error) {
+        throw new Error('Error getting email logs');
+    }
 
-    res.json(logs);
+    res.json(data);
   } catch (error) {
     console.error('Error getting email logs:', error);
     res.status(500).json({ error: 'Error getting email logs' });

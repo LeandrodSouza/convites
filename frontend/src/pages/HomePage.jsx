@@ -1,13 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signOut } from 'firebase/auth';
-import { auth, db } from '../services/firebase';
-import { collection, onSnapshot, query, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { supabase } from '../services/supabase';
 import { getUserById } from '../services/userService';
 import { getEventSettings } from '../services/eventSettingsService';
 import GiftCard from '../components/GiftCard';
 import Toast from '../components/Toast';
 import { WazeLogo, UberLogo, GoogleMapsLogo } from '../components/AppLogos';
+import { api } from '../services/api';
 
 function HomePage({ user }) {
   const navigate = useNavigate();
@@ -24,11 +23,6 @@ function HomePage({ user }) {
   const localRef = useRef(null);
   const homeRef = useRef(null);
 
-  const selectedGiftsRef = useRef(selectedGifts);
-  useEffect(() => {
-    selectedGiftsRef.current = selectedGifts;
-  });
-
   useEffect(() => {
     if (!user) {
       navigate('/login');
@@ -38,42 +32,33 @@ function HomePage({ user }) {
     loadUserStatus();
     loadEventSettings();
 
-    const giftsQuery = query(collection(db, 'gifts'));
-    const unsubscribe = onSnapshot(giftsQuery, (snapshot) => {
-      const giftsData = snapshot.docs.map(doc => {
-        const data = doc.data();
-        // Garantir que takenBy seja sempre um array
-        return {
-          id: doc.id,
-          ...data,
-          takenBy: Array.isArray(data.takenBy) ? data.takenBy : []
-        };
-      });
+    const channel = supabase
+      .channel('gifts')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gifts' }, (payload) => {
+        console.log('Change received!', payload);
+        // Naive real-time implementation: refetch all gifts on any change.
+        // A more advanced implementation would handle inserts, updates, and deletes individually.
+        fetchGifts();
+      })
+      .subscribe();
 
-      setGifts(prevGifts => {
-        snapshot.docChanges().forEach((change) => {
-          if (change.type === 'modified') {
-            const oldData = prevGifts.find(g => g.id === change.doc.id);
-            const newData = change.doc.data();
-            const oldTakenBy = Array.isArray(oldData?.takenBy) ? oldData.takenBy : [];
-            const newTakenBy = Array.isArray(newData.takenBy) ? newData.takenBy : [];
+    fetchGifts();
 
-            if (oldTakenBy.length < newTakenBy.length) {
-              const newUser = newTakenBy[newTakenBy.length - 1];
-              if (newUser && newUser !== user.displayName) {
-                showToast(`Oba! "${newData.name}" acabou de ser escolhido !`);
-              }
-            }
-          }
-        });
-        return giftsData.sort((a, b) => (a.takenBy?.length || 0) - (b.takenBy?.length || 0));
-      });
-    }, (error) => {
-      console.error('Erro ao carregar presentes:', error);
-    });
-
-    return () => unsubscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user, navigate]);
+
+  const fetchGifts = async () => {
+    const { data, error } = await supabase.from('gifts').select('*').order('created_at', { ascending: false });
+    if (error) {
+      console.error('Error fetching gifts:', error);
+      setError('Error fetching gifts');
+    } else {
+      setGifts(data);
+    }
+  };
+
 
   const showToast = (message) => {
     const id = Date.now();
@@ -98,45 +83,12 @@ function HomePage({ user }) {
   const loadUserStatus = async () => {
     try {
       setLoading(true);
-      const status = await getUserById(user.uid);
+      const status = await getUserById(user.id);
       if (!status || status.status !== 'approved') {
         navigate('/pending');
         return;
       }
-
-      // MIGRAÇÃO: Converter selectedGift (singular) para selectedGifts (plural)
-      let userSelectedGifts = [];
-
-      if (Array.isArray(status.selectedGifts)) {
-        // Já tem selectedGifts (plural) como array
-        userSelectedGifts = status.selectedGifts;
-      } else if (status.selectedGift) {
-        // Tem selectedGift (singular) - precisa migrar
-        userSelectedGifts = status.selectedGift ? [status.selectedGift] : [];
-
-        // Atualizar no Firestore para o novo formato
-        try {
-          const userRef = doc(db, 'users', user.uid);
-          await updateDoc(userRef, {
-            selectedGifts: userSelectedGifts,
-            selectedGift: null  // Remover campo antigo
-          });
-        } catch (migrationErr) {
-          console.error('DEBUG - Erro na migração:', migrationErr);
-        }
-      } else {
-        // Não tem nem selectedGifts nem selectedGift - criar campo novo
-        try {
-          const userRef = doc(db, 'users', user.uid);
-          await updateDoc(userRef, {
-            selectedGifts: []
-          });
-        } catch (createErr) {
-          console.error('DEBUG - Erro ao criar selectedGifts:', createErr);
-        }
-      }
-
-      setSelectedGifts(userSelectedGifts);
+      setSelectedGifts(status.selectedGifts || []);
     } catch (err) {
       console.error('DEBUG - Erro ao carregar status:', err);
       setError('Erro ao carregar seus dados.');
@@ -146,41 +98,28 @@ function HomePage({ user }) {
   };
 
   const handleSelectGift = async (giftId) => {
-    if (!giftId || !user?.uid || !user?.displayName) {
+    if (!giftId || !user?.id || !user?.user_metadata?.full_name) {
       showToast('Erro ao selecionar presente. Tente novamente.');
       return;
     }
 
-    // Verificar se já está selecionado
     if (selectedGifts.includes(giftId)) {
       showToast('Você já escolheu este presente!');
       return;
     }
 
     const gift = gifts.find(g => g.id === giftId);
-    if (gift && gift.takenBy && gift.takenBy.length > 0) {
-        showToast('Opa! Parece que outra pessoa já escolheu este presente.');
-        return;
+    if (gift && gift.taken) {
+      showToast('Opa! Parece que outra pessoa já escolheu este presente.');
+      return;
     }
 
     try {
-      const giftRef = doc(db, 'gifts', giftId);
-      const userRef = doc(db, 'users', user.uid);
-
-      // Atualizar no Firestore
-      await updateDoc(giftRef, {
-        takenBy: arrayUnion(user.displayName)
-      });
-
-      await updateDoc(userRef, {
-        selectedGifts: arrayUnion(giftId)
-      });
-
-      // Atualizar estado local
-      setSelectedGifts(prev => {
-        const newList = !prev.includes(giftId) ? [...prev, giftId] : prev;
-        return newList;
-      });
+      // For optimistic UI update, we can update the state first.
+      // However, for simplicity and to ensure consistency, we'll wait for the API call.
+      const session = await supabase.auth.getSession();
+      await api.selectGift(giftId, session.data.session.provider_token);
+      setSelectedGifts(prev => [...prev, giftId]);
       showToast('Oba! Presente escolhido! 💚');
     } catch (err) {
       console.error('DEBUG - Erro ao selecionar presente:', err);
@@ -189,34 +128,23 @@ function HomePage({ user }) {
   };
 
   const handleUnselectGift = async (giftId) => {
-    if (!giftId || !user?.uid || !user?.displayName) {
+    if (!giftId || !user?.id) {
       showToast('Erro ao desselecionar presente. Tente novamente.');
       return;
     }
 
     if (!window.confirm('Ops! Quer mesmo tirar este presente da sua lista?')) return;
 
-    // Verificar se realmente está selecionado
     if (!selectedGifts.includes(giftId)) {
       showToast('Este presente não está na sua lista.');
       return;
     }
 
     try {
-      const giftRef = doc(db, 'gifts', giftId);
-      const userRef = doc(db, 'users', user.uid);
-
-      // Atualizar no Firestore
-      await updateDoc(giftRef, {
-        takenBy: arrayRemove(user.displayName)
-      });
-      await updateDoc(userRef, {
-        selectedGifts: arrayRemove(giftId)
-      });
-
-      // Atualizar estado local
-      setSelectedGifts(prev => prev.filter(id => id !== giftId));
-      showToast('Tudo bem, você pode escolher outro item!');
+        const session = await supabase.auth.getSession();
+        await api.unselectGift(giftId, session.data.session.provider_token);
+        setSelectedGifts(prev => prev.filter(id => id !== giftId));
+        showToast('Tudo bem, você pode escolher outro item!');
     } catch (err) {
       console.error('Erro ao desselecionar presente:', err);
       showToast('Eita, não conseguimos alterar. Tente de novo.');
@@ -224,7 +152,7 @@ function HomePage({ user }) {
   };
 
   const handleLogout = async () => {
-    await signOut(auth);
+    await supabase.auth.signOut();
     navigate('/login');
   };
 
@@ -253,7 +181,7 @@ function HomePage({ user }) {
 
   const isAdmin = (import.meta.env.VITE_ADMIN_EMAILS || '').includes(user.email);
   const mySelectedGifts = gifts.filter(g => selectedGifts.includes(g.id));
-  const availableGifts = gifts.filter(g => !selectedGifts.includes(g.id) && (!g.takenBy || g.takenBy.length === 0));
+  const availableGifts = gifts.filter(g => !g.taken);
 
   return (
     <div className="bg-secondary min-h-screen font-sans text-accent relative">
@@ -264,16 +192,16 @@ function HomePage({ user }) {
 
       <header ref={homeRef} className="bg-white/90 backdrop-blur-md shadow-sm sticky top-0 z-20 p-4 flex justify-between items-center border-b border-border">
         <div className="flex items-center gap-3">
-          <img src={user.photoURL} alt={user.displayName} className="w-10 h-10 rounded-full border-2 border-primary" />
+          <img src={user.user_metadata.avatar_url} alt={user.user_metadata.full_name} className="w-10 h-10 rounded-full border-2 border-primary" />
           <div>
-            <p className="text-sm">Que bom te ver, <span className="font-semibold text-primary">{user.displayName}</span>!</p>
+            <p className="text-sm">Que bom te ver, <span className="font-semibold text-primary">{user.user_metadata.full_name}</span>!</p>
            
           </div>
         </div>
         <div>
           {isAdmin && (
             <button onClick={handleAdminAccess} className="p-2 rounded-full hover:bg-brand-light" aria-label="Admin">
-              <svg className="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+              <svg className="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0 3.35a1.724 1.724 0 001.066 2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
             </button>
           )}
           <button onClick={handleLogout} className="p-2 rounded-full hover:bg-brand-light" aria-label="Sair">
